@@ -53,9 +53,9 @@ class PolicyNetwork:
         :return: result from network. - [1X7]
         '''
         lays = tf.contrib.layers
-        conv_layer1 = tf.layers.conv2d(feed_inputs, 8, [5, 5], padding='same', activation=tf.nn.sigmoid, name="conv1")
-        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.sigmoid, name="conv2")
-        conv_layer3 = tf.layers.conv2d(conv_layer2, 8, [3, 3], padding='same', activation=tf.nn.sigmoid, name="conv3")
+        conv_layer1 = tf.layers.conv2d(feed_inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
+        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.relu, name="conv2")
+        conv_layer3 = tf.layers.conv2d(conv_layer2, 8, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
         sum_layer1 = tf.reduce_sum(conv_layer3, axis=1)
         fully_connected1 = lays.fully_connected(sum_layer1, 1, activation_fn=None)
         # final_layer = tf.squeeze(fully_connected1, axis=-1)
