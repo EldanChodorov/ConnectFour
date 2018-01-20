@@ -1,0 +1,215 @@
+0::0:0:0	1	STATUS	Model not found, initializing random weights.
+0::0:0:52	0	STATUS	Game 100 over:
+Player 1 wins: 99
+Player 2 wins: 1
+Draws: 0
+0::0:1:28	0	STATUS	Game 200 over:
+Player 1 wins: 198
+Player 2 wins: 2
+Draws: 0
+0::0:2:3	0	STATUS	Game 300 over:
+Player 1 wins: 297
+Player 2 wins: 3
+Draws: 0
+0::0:2:38	0	STATUS	Game 400 over:
+Player 1 wins: 397
+Player 2 wins: 3
+Draws: 0
+0::0:3:12	0	STATUS	Game 500 over:
+Player 1 wins: 494
+Player 2 wins: 6
+Draws: 0
+0::0:3:44	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:3:48	0	STATUS	Game 600 over:
+Player 1 wins: 593
+Player 2 wins: 7
+Draws: 0
+0::0:3:53	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:4:23	0	STATUS	Game 700 over:
+Player 1 wins: 689
+Player 2 wins: 10
+Draws: 1
+0::0:4:58	0	STATUS	Game 800 over:
+Player 1 wins: 789
+Player 2 wins: 10
+Draws: 1
+0::0:5:2	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:5:32	0	STATUS	Game 900 over:
+Player 1 wins: 888
+Player 2 wins: 11
+Draws: 1
+0::0:6:6	0	STATUS	Game 1000 over:
+Player 1 wins: 988
+Player 2 wins: 11
+Draws: 1
+0::0:6:32	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:6:40	0	STATUS	Game 1100 over:
+Player 1 wins: 1087
+Player 2 wins: 12
+Draws: 1
+0::0:6:45	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:7:15	0	STATUS	Game 1200 over:
+Player 1 wins: 1185
+Player 2 wins: 14
+Draws: 1
+0::0:7:50	0	STATUS	Game 1300 over:
+Player 1 wins: 1281
+Player 2 wins: 18
+Draws: 1
+0::0:8:25	0	STATUS	Game 1400 over:
+Player 1 wins: 1379
+Player 2 wins: 20
+Draws: 1
+0::0:9:0	0	STATUS	Game 1500 over:
+Player 1 wins: 1477
+Player 2 wins: 22
+Draws: 1
+0::0:9:12	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:9:26	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:9:35	0	STATUS	Game 1600 over:
+Player 1 wins: 1576
+Player 2 wins: 23
+Draws: 1
+0::0:9:43	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:10:10	0	STATUS	Game 1700 over:
+Player 1 wins: 1675
+Player 2 wins: 24
+Draws: 1
+0::0:10:42	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:10:46	0	STATUS	Game 1800 over:
+Player 1 wins: 1775
+Player 2 wins: 24
+Draws: 1
+0::0:11:20	0	STATUS	Game 1900 over:
+Player 1 wins: 1874
+Player 2 wins: 25
+Draws: 1
+0::0:11:36	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:11:56	0	STATUS	Game 2000 over:
+Player 1 wins: 1973
+Player 2 wins: 26
+Draws: 1
+0::0:12:32	0	STATUS	Game 2100 over:
+Player 1 wins: 2072
+Player 2 wins: 27
+Draws: 1
+0::0:13:7	0	STATUS	Game 2200 over:
+Player 1 wins: 2170
+Player 2 wins: 29
+Draws: 1
+0::0:13:42	0	STATUS	Game 2300 over:
+Player 1 wins: 2269
+Player 2 wins: 30
+Draws: 1
+0::0:14:16	0	STATUS	Game 2400 over:
+Player 1 wins: 2368
+Player 2 wins: 31
+Draws: 1
+0::0:14:41	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:14:50	0	STATUS	Game 2500 over:
+Player 1 wins: 2466
+Player 2 wins: 33
+Draws: 1
+0::0:14:58	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:15:0	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:15:24	0	STATUS	Game 2600 over:
+Player 1 wins: 2564
+Player 2 wins: 35
+Draws: 1
+0::0:15:56	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:15:59	0	STATUS	Game 2700 over:
+Player 1 wins: 2663
+Player 2 wins: 36
+Draws: 1
+0::0:16:7	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:16:8	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:16:13	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:16:29	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:16:33	0	STATUS	Game 2800 over:
+Player 1 wins: 2762
+Player 2 wins: 37
+Draws: 1
+0::0:17:7	0	STATUS	Game 2900 over:
+Player 1 wins: 2859
+Player 2 wins: 40
+Draws: 1
+0::0:17:42	0	STATUS	Game 3000 over:
+Player 1 wins: 2958
+Player 2 wins: 41
+Draws: 1
+0::0:18:17	0	STATUS	Game 3100 over:
+Player 1 wins: 3055
+Player 2 wins: 44
+Draws: 1
+0::0:18:37	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:18:48	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:18:53	0	STATUS	Game 3200 over:
+Player 1 wins: 3155
+Player 2 wins: 44
+Draws: 1
+0::0:19:26	0	STATUS	Game 3300 over:
+Player 1 wins: 3254
+Player 2 wins: 45
+Draws: 1
+0::0:19:41	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:19:59	0	STATUS	Game 3400 over:
+Player 1 wins: 3352
+Player 2 wins: 47
+Draws: 1
+0::0:20:33	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:20:33	0	STATUS	Game 3500 over:
+Player 1 wins: 3451
+Player 2 wins: 48
+Draws: 1
+0::0:20:42	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:21:7	0	STATUS	Game 3600 over:
+Player 1 wins: 3550
+Player 2 wins: 49
+Draws: 1
+0::0:21:40	0	STATUS	Game 3700 over:
+Player 1 wins: 3650
+Player 2 wins: 49
+Draws: 1
+0::0:22:14	0	STATUS	Game 3800 over:
+Player 1 wins: 3750
+Player 2 wins: 49
+Draws: 1
+0::0:22:14	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:15	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:16	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:16	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:23	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:24	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:24	2	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:36	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:22:49	0	STATUS	Game 3900 over:
+Player 1 wins: 3847
+Player 2 wins: 52
+Draws: 1
+0::0:22:50	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:23:23	0	STATUS	Game 4000 over:
+Player 1 wins: 3946
+Player 2 wins: 53
+Draws: 1
+0::0:23:48	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:23:55	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:23:56	0	STATUS	Game 4100 over:
+Player 1 wins: 4046
+Player 2 wins: 53
+Draws: 1
+0::0:24:8	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:24:11	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:24:14	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:24:31	0	STATUS	Game 4200 over:
+Player 1 wins: 4144
+Player 2 wins: 55
+Draws: 1
+0::0:25:5	0	STATUS	Game 4300 over:
+Player 1 wins: 4243
+Player 2 wins: 56
+Draws: 1
+0::0:25:31	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:25:32	1	ERROR	No Response: player took too long to respond with action. This is No Response #2 in a row!
+0::0:25:34	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:25:37	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
+0::0:25:37	1	ERROR	No Response: player took too long to respond with action. This is No Response #1 in a row!
