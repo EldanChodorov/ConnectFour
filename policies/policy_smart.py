@@ -68,19 +68,27 @@ class SmartPolicy(Policy):
             states = states.reshape((batch_size, 6, 7, 1))
 
             new_q = self.get_next_Q(next_states)
-            best_q = np.max(new_q, axis=1).reshape(batch_size)
+            action_table = np.argsort(new_q, axis=1)
+            best_q = np.max(new_q[:, 0]).reshape(batch_size)
+            for sing_batch in new_q:
+                action_table = action_table[sing_batch]
+                for action in action_table:
+                    if next_states[0, action] == 0:
+                        best_q[sing_batch,:] = action
+            best_q = np.max(new_q[:,action]).reshape(batch_size)
             predicted_action = np.argmax(new_q, axis=1).reshape(batch_size)
             fixed_rewards = rewards + self.gamma * best_q * np.abs(rewards)
 
             # illegal moves
             invalid = (next_states[np.arange(batch_size), 0, predicted_action, 0] != 0)
-            invalid = 0.1 * invalid + 1.0
+            invalid = 0.0 * invalid + 1.0
 
             # train
             feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
                          self.q_network.boards: states, self.q_network.punishment: invalid}
             _, loss, net = self.q_network.session.run([self.q_network.optimizer, self.q_network.loss,
                                                        self.q_network.q_vals], feed_dict=feed_dict)
+            # print(loss )
 
         except Exception as ex:
             print("Exception in learn: %s %s" % (type(ex), ex))
@@ -90,7 +98,6 @@ class SmartPolicy(Policy):
 
     def act(self, round, prev_state, prev_action, reward, new_state, too_slow):
         try:
-
             # clear memory if full
             if len(self.transitions_memory) >= self.memory_limit:
                 self.transitions_memory.popleft()
@@ -105,8 +112,25 @@ class SmartPolicy(Policy):
             if reward != 0:
                 self.actions = []
 
-            # store parameters in memory
+            # normalize board
+            new_state = np.copy(new_state)
+            if self.id == 1:
+                new_state[np.where(new_state == 2)] = -1
+            else:
+                new_state[np.where(new_state == 1)] = -1
+                new_state[np.where(new_state == 2)] = 1
+
+
             if prev_action is not None and prev_state is not None:
+                prev_state = np.copy(prev_state)
+
+                if self.id == 1:
+                    prev_state[np.where(prev_state == 2)] = -1
+                else:
+                    prev_state[np.where(prev_state == 1)] = -1
+                    prev_state[np.where(prev_state == 2)] = 1
+
+                # store parameters in memory
                 self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
 
             # use epsilon greedy
@@ -124,7 +148,14 @@ class SmartPolicy(Policy):
                 # get next action from network
                 new_state = new_state.reshape(1, 6, 7, 1)
                 q_values = self.get_next_Q(new_state)
-                action = np.argmax(q_values)
+                action_table = np.flipud(np.argsort(q_values,axis=1))
+                for action in action_table:
+                    if new_state[0, action] == 0:
+                        break
+                # print("=Board")
+                # print(new_state.reshape(6,7))
+                # print("=Action=")
+                # print(action)
                 self.actions.append(action)
 
         except Exception as ex:

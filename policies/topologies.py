@@ -22,8 +22,8 @@ class PolicyNetwork:
 
         self.action = tf.reduce_sum(tf.multiply(self.q_vals, self.actions_holder), reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
-        self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2)) * self.punishment
-        self.optimizer = tf.train.AdamOptimizer(self.lr).minimize([self.loss])
+        self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
+        self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
         self.init = tf.global_variables_initializer()
         self.session = tf.Session()
@@ -52,12 +52,12 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try2(feed_inputs)
+        return self.net_try3(feed_inputs)
 
     def net_try1(self, inputs):
         conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
         conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.relu, name="conv2")
-        conv_layer3 = tf.layers.conv2d(conv_layer2, 8, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
+        conv_layer3 = tf.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
         sum_layer1 = tf.reduce_sum(conv_layer3, axis=1)
         fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
         return fully_connected1
@@ -90,6 +90,15 @@ class PolicyNetwork:
         final = tf.expand_dims(final, -1)
         return final
 
+
+    def net_try3(self, inputs):
+        conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
+        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [5, 5], padding='same', activation=tf.nn.relu, name="conv2")
+        conv_layer3 = tf.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
+        conv_layer4 = tf.layers.conv2d(conv_layer3, 64, [3, 3], padding='same', activation=tf.nn.relu, name="conv4")
+        sum_layer1 = tf.reduce_sum(conv_layer4, axis=1)
+        fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
+        return fully_connected1
 
 if __name__ == '__main__':
     matrix = np.zeros((6, 7)).astype(np.float32)
