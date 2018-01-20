@@ -15,14 +15,14 @@ class PolicyNetwork:
         self.session = None
 
         # placeholders
-        self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7])
-        self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 1])
-        self.rewards = tf.placeholder(tf.float32, shape=[None])
+        self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7, 1], name="action_holder")
+        self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 1], name="boards")
+        self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.x = self.network_run(self.boards)
 
-        self.action = tf.reduce_sum(tf.mul(self.x, self.actions_holder), reduction_indices=1)
-
-        self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2))
+        self.action = tf.reduce_sum(tf.multiply(self.x, self.actions_holder), reduction_indices=1)
+        self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
+        self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2)) * self.punishment
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
         self.init = tf.global_variables_initializer()
@@ -30,14 +30,13 @@ class PolicyNetwork:
         self.session.run(self.init)
 
     def train(self, inputs, rewards, actions):
+        invalid_move = 1.0
         for ep in range(self.epochs):
             for batch in range(self.batches_per_epoch):
-                _, loss, net = self.session.run([self.optimizer, self.loss, self.x],
+                _, loss, q_values = self.session.run([self.optimizer, self.loss, self.x],
                                                 feed_dict={self.rewards: rewards, self.actions_holder:
-                                                    actions, self.boards: inputs})
-                if batch % 20 == 0:
-                    print(loss)
-                    print(net)
+                                                    actions, self.boards: inputs, self.punishment: invalid_move})
+                invalid_move = 1.0 + (inputs[0, np.argmax(q_values, axis=1)] != 0) * 0.1
 
     def weight(self, shape):
         return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
@@ -53,20 +52,15 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        self.x = feed_inputs
         lays = tf.contrib.layers
-        conv_layer1 = lays.conv2d(self.x, 8, [5, 5], activation_fn=tf.nn.sigmoid)
-        conv_layer2 = lays.conv2d(conv_layer1, 16, [3, 3], activation_fn=tf.nn.sigmoid)
-        conv_layer3 = lays.conv2d(conv_layer2, 8, [3, 3], activation_fn=tf.nn.sigmoid)
+        conv_layer1 = tf.layers.conv2d(feed_inputs, 8, [5, 5], padding='same', activation=tf.nn.sigmoid, name="conv1")
+        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.sigmoid, name="conv2")
+        conv_layer3 = tf.layers.conv2d(conv_layer2, 8, [3, 3], padding='same', activation=tf.nn.sigmoid, name="conv3")
         sum_layer1 = tf.reduce_sum(conv_layer3, axis=1)
         fully_connected1 = lays.fully_connected(sum_layer1, 1, activation_fn=None)
-
+        # final_layer = tf.squeeze(fully_connected1, axis=-1)
         return fully_connected1
 
-    def __del__(self):
-        if self.session:
-            self.session.close()
-            self.session = None
 
 
 if __name__ == '__main__':

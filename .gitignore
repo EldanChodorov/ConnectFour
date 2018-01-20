@@ -1,0 +1,5 @@
+game.log
+game.out
+.idea/*
+*/__pycache__/*
+models/models
