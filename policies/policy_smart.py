@@ -80,13 +80,13 @@ class SmartPolicy(Policy):
             feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
                          self.q_network.boards: states, self.q_network.punishment: invalid}
             _, loss, net = self.q_network.session.run([self.q_network.optimizer, self.q_network.loss,
-                                                       self.q_network.x], feed_dict=feed_dict)
+                                                       self.q_network.q_vals], feed_dict=feed_dict)
 
         except Exception as ex:
             print("Exception in learn: %s %s" % (type(ex), ex))
 
     def get_next_Q(self, curr_state):
-        return self.q_network.x.eval(feed_dict={self.q_network.boards: curr_state}, session=self.q_network.session)
+        return self.q_network.q_vals.eval(feed_dict={self.q_network.boards: curr_state}, session=self.q_network.session)
 
     def act(self, round, prev_state, prev_action, reward, new_state, too_slow):
         try:
@@ -135,6 +135,7 @@ class SmartPolicy(Policy):
             return action
 
     def save_model(self):
+        return [], self.save_path
         return tf.trainable_variables(), self.save_path
 
     def init_run(self):
