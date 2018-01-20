@@ -1,0 +1,3 @@
+game_id,number_of_games,player_num,policy,number_of_wins,model_file_path,score
+2363644525088,100,1,RandomAgent,4,C:\Users\Eldan\Dropbox\University\a fourth year\APML-67750\Connect Four\models\random.model.pkl,0.04
+2363644525088,100,2,MinmaxAgent,96,,0.96
