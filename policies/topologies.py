@@ -52,7 +52,7 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try3(feed_inputs)
+        return self.net_try2(feed_inputs)
 
     def net_try1(self, inputs):
         conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")

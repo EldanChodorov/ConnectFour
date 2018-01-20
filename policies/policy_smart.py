@@ -68,19 +68,22 @@ class SmartPolicy(Policy):
             states = states.reshape((batch_size, 6, 7, 1))
 
             new_q = self.get_next_Q(next_states)
-            action_table = np.argsort(new_q, axis=1)
-            best_q = np.max(new_q[:, 0]).reshape(batch_size)
-            for sing_batch in new_q:
-                action_table = action_table[sing_batch]
-                for action in action_table:
-                    if next_states[0, action] == 0:
-                        best_q[sing_batch,:] = action
-            best_q = np.max(new_q[:,action]).reshape(batch_size)
-            predicted_action = np.argmax(new_q, axis=1).reshape(batch_size)
-            fixed_rewards = rewards + self.gamma * best_q * np.abs(rewards)
+            action_table = np.argsort(np.squeeze(new_q,axis=-1), axis=1)
+            best_q = np.zeros((batch_size))
+            predicted_action = np.zeros((batch_size))
+            for sing_batch in np.arange(batch_size):
+                sing_exmp = action_table[sing_batch]
+                for action in sing_exmp:
+                    if next_states[sing_batch,0, action,0] == 0:
+                        best_q[sing_batch] = new_q[sing_batch,action,0]
+                        predicted_action[sing_batch] = action
+                        break
+
+            # a = np.sign(rewards)
+            fixed_rewards = rewards + self.gamma * best_q
 
             # illegal moves
-            invalid = (next_states[np.arange(batch_size), 0, predicted_action, 0] != 0)
+            invalid = np.zeros((batch_size,))
             invalid = 0.0 * invalid + 1.0
 
             # train
@@ -149,8 +152,9 @@ class SmartPolicy(Policy):
                 new_state = new_state.reshape(1, 6, 7, 1)
                 q_values = self.get_next_Q(new_state)
                 action_table = np.flipud(np.argsort(q_values,axis=1))
-                for action in action_table:
-                    if new_state[0, action] == 0:
+
+                for action in action_table[0,:,0]:
+                    if new_state[0,0,action,0] == 0:
                         break
                 # print("=Board")
                 # print(new_state.reshape(6,7))
