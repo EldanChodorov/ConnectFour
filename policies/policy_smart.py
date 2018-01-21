@@ -5,6 +5,7 @@ import random
 import time
 from collections import deque
 import tensorflow as tf
+import pickle
 
 
 def timeit(method):
@@ -40,8 +41,8 @@ class SmartPolicy(Policy):
         policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.95
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.1
         policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 5000
-        policy_args['save_path'] = policy_args['save_path'] if 'save_path' in policy_args else 'model/Smart'
-        policy_args['load_path'] = policy_args['load_path'] if 'load_path' in policy_args else 'model/Smart'
+        policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
+        policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
         return policy_args
 
     def learn(self, round, prev_state, prev_action, reward, new_state, too_slow):
@@ -170,13 +171,23 @@ class SmartPolicy(Policy):
             return action
 
     def save_model(self):
-        return [], self.save_path
-        return tf.trainable_variables(), self.save_path
+        weights = [self.q_network.session.run(v) for v in tf.trainable_variables()]
+        print("Model saved to %s" % self.save_to)
+        return weights, self.save_to
 
     def init_run(self):
         # store all transition batches seen during game {round_num: transition_batch}
         self.transitions_memory = deque()
         self.actions = []
+
+        # load stored model
+        if self.load_from:
+            with open(self.load_from, 'rb') as f:
+                weights = pickle.load(f)
+                for v, w in zip(tf.trainable_variables(), weights):
+                    self.q_network.session.run(v.assign(w))
+            print("Model loaded from %s" % self.load_from)
+
         self.q_network = PolicyNetwork(self.learning_rate, epochs=5, batches_per_epoch=self.batch_size)
 
 
