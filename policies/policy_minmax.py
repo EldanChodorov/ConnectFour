@@ -145,7 +145,7 @@ class MinmaxAgent(bp.Policy):
             self.log("Model not found, initializing random weights.", 'STATUS')
 
         self.session = tf.Session()
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.initialize_all_variables())
 
         return
 
