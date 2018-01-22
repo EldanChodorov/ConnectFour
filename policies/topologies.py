@@ -52,7 +52,7 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try2(feed_inputs)
+        return self.net_try4(feed_inputs)
 
     def net_try1(self, inputs):
         conv_layer1 = tf.contrib.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
@@ -99,6 +99,26 @@ class PolicyNetwork:
         sum_layer1 = tf.reduce_sum(conv_layer4, reduction_indices=1)
         fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
         return fully_connected1
+
+    def net_try4(self, inputs):
+
+        input_shape = inputs.get_shape().as_list()
+
+        weight1 = self.weight([input_shape[1] * input_shape[2] * input_shape[3], 10])
+        bias1 = self.bias([10])
+
+        input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])
+
+        fully_connected1 = tf.nn.relu(tf.matmul(input_flat, weight1) + bias1)
+
+        weight2 = self.weight([10, 7])
+        bias2 = self.bias([7])
+
+        fully_connected2 = tf.matmul(fully_connected1, weight2) + bias2
+
+        final = tf.expand_dims(fully_connected2, -1)
+        return final
+
 
 if __name__ == '__main__':
     matrix = np.zeros((6, 7)).astype(np.float32)
