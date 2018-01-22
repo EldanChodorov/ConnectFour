@@ -61,22 +61,11 @@ class SmartPolicy(Policy):
                 if len(self.transitions_memory) >= self.memory_limit:
                     self.transitions_memory.popleft()
 
-                    # normalize board
-                new_state = np.copy(new_state)
-                if self.id == 1:
-                    new_state[np.where(new_state == 2)] = -1
-                else:
-                    new_state[np.where(new_state == 1)] = -1
-                    new_state[np.where(new_state == 2)] = 1
+                # normalize board
+                new_state = self.normalize_board(new_state)
 
                 if prev_action is not None and prev_state is not None:
-                    prev_state = np.copy(prev_state)
-
-                    if self.id == 1:
-                        prev_state[np.where(prev_state == 2)] = -1
-                    else:
-                        prev_state[np.where(prev_state == 1)] = -1
-                        prev_state[np.where(prev_state == 2)] = 1
+                    prev_state = self.normalize_board(prev_state)
 
                     # store parameters in memory
                     self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
@@ -162,7 +151,7 @@ class SmartPolicy(Policy):
         if self.id == 1:
             board[np.where(board == 2)] = -1
         else:
-            board[np.where(board == 1)]  = -1
+            board[np.where(board == 1)] = -1
             board[np.where(board == 2)] = 1
         return board
 

@@ -25,7 +25,7 @@ class PolicyNetwork:
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
-        self.probabilities = tf.nn.softmax(self.q_vals)
+        self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True))
