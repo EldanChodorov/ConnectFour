@@ -6,6 +6,8 @@ import time
 from collections import deque
 import tensorflow as tf
 import pickle
+from matplotlib import pyplot as plt
+from scipy import signal
 
 DEBUG = False
 
@@ -41,7 +43,7 @@ class SmartPolicy(Policy):
     def cast_string_args(self, policy_args):
         policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 50
         policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.1
-        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.01
+        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.95
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.1
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0.005
         policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in policy_args else 0.001
@@ -70,7 +72,10 @@ class SmartPolicy(Policy):
         try:
 
             if reward != 0:
-
+                # print('round num,', round)
+                # print('preave state\n', prev_state, '\n')
+                # print('preave action\n', prev_action, '\n')
+                # print('new state\n', new_state)
                 if DEBUG:
                     if not self._round_started and round % 500 == 0:
                         self._round_started = True
@@ -78,12 +83,23 @@ class SmartPolicy(Policy):
                 if len(self.transitions_memory) >= self.memory_limit:
                     self.transitions_memory.popleft()
 
-                # normalize board
-                new_state = self.normalize_board(new_state)
-
+                    # normalize board
+                new_state = np.copy(new_state)
+                if self.id == 1:
+                    new_state[np.where(new_state == 2)] = -1
+                else:
+                    new_state[np.where(new_state == 1)] = -1
+                    new_state[np.where(new_state == 2)] = 1
+                new_state = self.re_rpresent_state(new_state)
                 if prev_action is not None and prev_state is not None:
                     prev_state = self.normalize_board(prev_state)
 
+                    if self.id == 1:
+                        prev_state[np.where(prev_state == 2)] = -1
+                    else:
+                        prev_state[np.where(prev_state == 1)] = -1
+                        prev_state[np.where(prev_state == 2)] = 1
+                    prev_state = self.re_rpresent_state(prev_state)
                     # store parameters in memory
                     self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
 
@@ -96,10 +112,22 @@ class SmartPolicy(Policy):
                 return
 
             # select random batches from memory
-            rewards, states, next_states, vector_actions = self.get_random_batches(batch_size)
+            random_batches = random.sample(self.transitions_memory, batch_size)
+
+            # extract features from batches
+            rewards = np.array([batch.reward for batch in random_batches])
+            states = np.array([batch.state for batch in random_batches])
+            next_states = np.array([batch.next_state for batch in random_batches])
+            actions = np.array([batch.action for batch in random_batches])
+
+            # reshape
+            vector_actions = (np.eye(7)[actions]).reshape((batch_size, 7, 1))
+            next_states = next_states.reshape((batch_size, 6, 7, 5))
+            states = states.reshape((batch_size, 6, 7, 5))
 
             # get next action from network
             new_q = self.get_next_Q(next_states)
+            # print(new_q)
             action_table = np.argsort(np.squeeze(new_q,axis=-1), axis=1)
             best_q = np.zeros((batch_size))
             predicted_action = np.zeros((batch_size))
@@ -135,8 +163,8 @@ class SmartPolicy(Policy):
 
     def get_middle_state(self, prev_state, prev_action):
         state = np.copy(prev_state)
-        row = np.max(np.where(self.state[:, prev_action] == 0))
-        state[row, prev_action] = -1
+        row = np.max(np.where(state[:, prev_action] == 0))
+        state[row, prev_action] = 1
         return state
 
     def update_rates(self):
@@ -146,6 +174,44 @@ class SmartPolicy(Policy):
         # exploration-exploitation e-greedy
         if self.epsilon > 0.01:
             self.epsilon -= self.epsilon_decay
+
+    def re_rpresent_state(self,state):
+        """
+        given an initial board, check that it is legal (no one has won yet and the size is OK).
+        :param board: the board state.
+        :return: True iff board is legal.
+        """
+
+        our_palce = state[:,:] == 1
+        us_three_in_a_row_mask = signal.convolve2d( our_palce,self.WIN_MASK, mode="same")
+        us_three_in_a_row_mask[np.where(us_three_in_a_row_mask != 3)] = 0
+
+        us_three_in_a_line_mask = signal.convolve2d( our_palce,self.WIN_MASK.T, mode="same")
+        us_three_in_a_line_mask[np.where(us_three_in_a_line_mask != 3)] = 0
+        us_three_in_a_diag1_mask = signal.convolve2d(our_palce, np.identity(3),mode="same")
+        us_three_in_a_diag1_mask[np.where(us_three_in_a_diag1_mask != 3)] = 0
+        us_three_in_a_diag2_mask = signal.convolve2d( our_palce,np.flip(np.identity(3),axis=1),
+                                                     mode="same")
+        us_three_in_a_diag2_mask[np.where(us_three_in_a_diag2_mask != 3)] = 0
+
+        here_place = state[:, :] == -1
+        here_three_in_a_row_mask = signal.convolve2d( here_place,self.WIN_MASK, mode="same")
+        here_three_in_a_row_mask[np.where(here_three_in_a_row_mask != 3)] = 0
+        here_three_in_a_line_mask = signal.convolve2d( here_place,self.WIN_MASK.T, mode="same")
+        here_three_in_a_line_mask[np.where(here_three_in_a_line_mask != 3)] = 0
+        here_three_in_a_diag1_mask = signal.convolve2d(here_place,np.identity(3), mode="same")
+        here_three_in_a_diag1_mask[np.where(here_three_in_a_diag1_mask != 3)] = 0
+        here_three_in_a_diag2_mask = signal.convolve2d( here_place,np.flip(np.identity(3),axis=1),
+                                                      mode="same")
+        here_three_in_a_diag2_mask[np.where(here_three_in_a_diag2_mask != 3)] = 0
+
+        rows = (us_three_in_a_row_mask + here_three_in_a_row_mask)[:,:,None]
+        lines = (us_three_in_a_line_mask + here_three_in_a_line_mask)[:,:,None]
+        diag1 = (here_three_in_a_diag1_mask + us_three_in_a_diag1_mask)[:,:,None]
+        diag2 = (here_three_in_a_diag1_mask + us_three_in_a_diag2_mask)[:,:,None]
+        state = state[:,:,None]
+        full_state = np.concatenate((state,rows,lines,diag1,diag2),axis=-1)
+        return full_state
 
     def normalize_board(self, board):
         '''
@@ -162,11 +228,12 @@ class SmartPolicy(Policy):
         return board
 
     def act(self, round, prev_state, prev_action, reward, new_state, too_slow):
+        #
 
         # log game state
         if DEBUG:
             if self._round_started:
-                # self.log("ROUND {} action {}\ngame state {}".format(round, prev_action, new_state))
+                self.log("ROUND {} action {}\ngame state \n{}".format(round, prev_action, new_state))
                 if reward != 0:
                     self._round_started = False
 
@@ -175,33 +242,36 @@ class SmartPolicy(Policy):
             if len(self.transitions_memory) >= self.memory_limit:
                 self.transitions_memory.popleft()
 
+
             # update learning rate
             if round % 1000 == 0:
                 self.update_rates()
 
             new_state = self.normalize_board(new_state)
-
-            if prev_action is not None and prev_state is not None:
-                prev_state = self.normalize_board(prev_state)
-
-                # store parameters in memory
-                self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
+            new_state = self.re_rpresent_state(new_state)
 
             # use epsilon greedy
             if np.random.rand() < self.epsilon:
 
                 # choose random action
-                action = self.get_random_action(new_state)
+                action = self.get_random_action(new_state[:,:,0])
 
             else:
                 # get next action from network
                 action = self.get_qNet_action(new_state)
 
+            middle_state = self.get_middle_state(new_state[:,:,0], action)
+            middle_state = self.re_rpresent_state(middle_state)
+            # store parameters in memory
+            self.transitions_memory.append(TransitionBatch(new_state, action, reward, middle_state))
+
+            # print('new action\n', action)
         except Exception as ex:
             print("Exception in act: %s %s" %(type(ex), ex))
             action = np.random.choice(np.arange(NUM_ACTION))
 
         finally:
+
             return action
 
     def get_random_action(self, new_state):
@@ -215,8 +285,9 @@ class SmartPolicy(Policy):
         return action
 
     def get_qNet_action(self, new_state):
-        new_state = new_state.reshape(1, 6, 7, 1)
+        new_state = new_state.reshape(1, 6, 7, 5)
         q_values = self.get_next_Q(new_state)
+        # print(q_values)
         action_table = np.flipud(np.argsort(q_values, axis=1))
 
         for action in action_table[0, :, 0]:
@@ -233,6 +304,10 @@ class SmartPolicy(Policy):
         self.transitions_memory = deque()
 
         # load stored model
+        self.WIN_MASK = np.ones(3)[..., None]
+        self.ROWS = 6
+        self.COLS = 7
+
         if self.load_from:
             with open(self.load_from, 'rb') as f:
                 weights = pickle.load(f)
