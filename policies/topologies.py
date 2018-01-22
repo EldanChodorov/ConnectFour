@@ -15,20 +15,21 @@ class PolicyNetwork:
         self.session = None
 
         # placeholders
-        self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7, 1], name="action_holder")
-        self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 1], name="boards")
-        self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
-        self.q_vals = self.network_run(self.boards)
+        with tf.device("/gpu:0"):
+            self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7, 1], name="action_holder")
+            self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 1], name="boards")
+            self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
+            self.q_vals = self.network_run(self.boards)
 
-        self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
-        self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
-        self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
-        self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+            self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
+            self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
+            self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
+            self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
-        self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
+            self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
-        self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+        self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
         self.session.run(self.init)
 
     def train(self, inputs, rewards, actions):

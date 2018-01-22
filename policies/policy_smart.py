@@ -7,7 +7,7 @@ from collections import deque
 import tensorflow as tf
 import pickle
 
-DEBUG = True
+DEBUG = False
 
 
 def timeit(method):
@@ -23,6 +23,7 @@ def timeit(method):
                   (method.__name__, (te - ts) * 1000))
         return result
     return timed
+
 
 class TransitionBatch:
     def __init__(self, state, action, reward, next_state):
@@ -48,6 +49,22 @@ class SmartPolicy(Policy):
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
         return policy_args
+
+    def get_random_batches(self, batch_size):
+        # select random batches from memory
+        random_batches = random.sample(self.transitions_memory, batch_size)
+
+        # extract features from batches
+        rewards = np.array([batch.reward for batch in random_batches])
+        states = np.array([batch.state for batch in random_batches])
+        next_states = np.array([batch.next_state for batch in random_batches])
+        actions = np.array([batch.action for batch in random_batches])
+
+        # reshape
+        vector_actions = (np.eye(7)[actions]).reshape((batch_size, 7, 1))
+        next_states = next_states.reshape((batch_size, 6, 7, 1))
+        states = states.reshape((batch_size, 6, 7, 1))
+        return rewards, states, next_states, vector_actions
 
     def learn(self, round, prev_state, prev_action, reward, new_state, too_slow):
         try:
@@ -79,18 +96,7 @@ class SmartPolicy(Policy):
                 return
 
             # select random batches from memory
-            random_batches = random.sample(self.transitions_memory, batch_size)
-
-            # extract features from batches
-            rewards = np.array([batch.reward for batch in random_batches])
-            states = np.array([batch.state for batch in random_batches])
-            next_states = np.array([batch.next_state for batch in random_batches])
-            actions = np.array([batch.action for batch in random_batches])
-
-            # reshape
-            vector_actions = (np.eye(7)[actions]).reshape((batch_size, 7, 1))
-            next_states = next_states.reshape((batch_size, 6, 7, 1))
-            states = states.reshape((batch_size, 6, 7, 1))
+            rewards, states, next_states, vector_actions = self.get_random_batches(batch_size)
 
             # get next action from network
             new_q = self.get_next_Q(next_states)
@@ -108,7 +114,7 @@ class SmartPolicy(Policy):
                         break
 
             fixed_rewards = rewards + self.gamma * best_q * (1 - np.square(rewards))
-            # print(fixed_rewards)
+
             # illegal moves
             invalid = np.zeros((batch_size,))
             invalid = 0.0 * invalid + 1.0
@@ -157,10 +163,6 @@ class SmartPolicy(Policy):
 
     def act(self, round, prev_state, prev_action, reward, new_state, too_slow):
 
-        print('round num,',round)
-        print('preave state\n',prev_state,'\n')
-        print('preave action\n', prev_action, '\n')
-        print('new state\n',new_state)
         # log game state
         if DEBUG:
             if self._round_started:
@@ -200,7 +202,6 @@ class SmartPolicy(Policy):
             action = np.random.choice(np.arange(NUM_ACTION))
 
         finally:
-            print('new action\n', action)
             return action
 
     def get_random_action(self, new_state):
