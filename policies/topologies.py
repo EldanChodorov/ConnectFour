@@ -120,5 +120,13 @@ class PolicyNetwork:
 
         final = tf.expand_dims(fully_connected2, -1)
         return final
+        fully_connected3 = tf.layers.dense(conv_layer3, 16)
+        conv_layer4 = tf.layers.conv2d(fully_connected3, 16, [3, 3], padding='same',
+                                               activation=tf.nn.relu,
+                                               name="conv4")
+        conv_layer5 = tf.layers.conv2d_transpose(conv_layer4,4,[3,3],2)
+        sum_layer1 = tf.reduce_sum(conv_layer5, reduction_indices=1)
+        fully_connected4 = tf.layers.dense(sum_layer1, 1, activation=None)
+        return fully_connected4
 
 
