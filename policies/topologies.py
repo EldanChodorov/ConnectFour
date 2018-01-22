@@ -20,10 +20,12 @@ class PolicyNetwork:
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.q_vals = self.network_run(self.boards)
 
-        self.action = tf.reduce_sum(tf.mul(self.q_vals, self.actions_holder), reduction_indices=1)
+        self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+        self.probabilities = tf.nn.softmax(self.q_vals)
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True))
@@ -120,15 +122,3 @@ class PolicyNetwork:
         return final
 
 
-if __name__ == '__main__':
-    matrix = np.zeros((6, 7)).astype(np.float32)
-    matrix[([5,4,5],[2,2,3])] = 1
-    matrix[([5,4,5],[4,4,1])] = 2
-    matrix = matrix.reshape((6, 7, 1))
-    matrix = matrix[None, :, :, :]
-    batch_size = 50
-    reward = np.array([0,1,1,-1,1,0,1])
-    action = np.array([1] * 7)
-    action = action[None, :]
-    network = PolicyNetwork(0.1, 2, batch_size)
-    network.train(matrix, reward, action)

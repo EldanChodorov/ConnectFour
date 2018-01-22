@@ -138,6 +138,12 @@ class SmartPolicy(Policy):
     def get_next_Q(self, curr_state):
         return self.q_network.q_vals.eval(feed_dict={self.q_network.boards: curr_state}, session=self.q_network.session)
 
+    def get_middle_state(self, prev_state, prev_action):
+        state = np.copy(prev_state)
+        row = np.max(np.where(self.state[:, prev_action] == 0))
+        state[row, prev_action] = -1
+        return state
+
     def update_rates(self):
         # learning rate
         if self.q_network.lr > 0.05:
@@ -156,7 +162,7 @@ class SmartPolicy(Policy):
         if self.id == 1:
             board[np.where(board == 2)] = -1
         else:
-            board[np.where(board == 1)] = -1
+            board[np.where(board == 1)]  = -1
             board[np.where(board == 2)] = 1
         return board
 
