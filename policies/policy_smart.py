@@ -110,6 +110,7 @@ class SmartPolicy(Policy):
 
             # get next action from network
             new_q = self.get_next_Q(next_states)
+            # print(new_q)
             action_table = np.argsort(np.squeeze(new_q,axis=-1), axis=1)
             best_q = np.zeros((batch_size))
             predicted_action = np.zeros((batch_size))
@@ -269,6 +270,7 @@ class SmartPolicy(Policy):
     def get_qNet_action(self, new_state):
         new_state = new_state.reshape(1, 6, 7, 5)
         q_values = self.get_next_Q(new_state)
+        # print(q_values)
         action_table = np.flipud(np.argsort(q_values, axis=1))
 
         for action in action_table[0, :, 0]:

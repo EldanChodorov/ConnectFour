@@ -111,7 +111,7 @@ class PolicyNetwork:
         weight2 = self.weight([10, 7])
         bias2 = self.bias([7])
 
-        fully_connected2 = tf.matmul(fully_connected1, weight2) + bias2
+        fully_connected2 =  tf.nn.sigmoid(tf.matmul(fully_connected1, weight2) + bias2)
 
         final = tf.expand_dims(fully_connected2, -1)
         return final
