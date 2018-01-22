@@ -19,10 +19,13 @@ class PolicyNetwork:
         self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 1], name="boards")
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.q_vals = self.network_run(self.boards)
-        self.action = tf.reduce_max(self.q_vals * self.actions_holder,axis=1)
+
+        self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
+
+        self.probabilities = tf.nn.softmax(self.q_vals)
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True))
@@ -51,17 +54,14 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try2(feed_inputs)
+        return self.net_try4(feed_inputs)
 
     def net_try1(self, inputs):
-        conv_layer1 = tf.layers.conv2d(inputs, 16, [5, 5], padding='same', activation=tf.nn.relu,
-                                               name="conv1")
-        conv_layer2 = tf.layers.conv2d(conv_layer1, 32, [3, 3], padding='same',
-                                               activation=tf.nn.relu, name="conv2")
-        conv_layer3 = tf.layers.conv2d(conv_layer2, 64, [3, 3], padding='same',
-                                               activation=tf.nn.relu, name="conv3")
+        conv_layer1 = tf.contrib.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
+        conv_layer2 = tf.contrib.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.relu, name="conv2")
+        conv_layer3 = tf.contrib.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
         sum_layer1 = tf.reduce_sum(conv_layer3, reduction_indices=1)
-        fully_connected1 = tf.layers.dense(sum_layer1, 1, activation=None)
+        fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
         return fully_connected1
 
     def net_try2(self, inputs):
@@ -70,7 +70,7 @@ class PolicyNetwork:
 
         h_conv1 = tf.nn.relu(tf.nn.conv2d(inputs, W_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1)
         h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        h_pool1 = tf.nn.dropout(h_pool1,keep_prob=0.7)
+
         W_conv2 = self.weight([3, 3, 8, 16])
         b_conv2 = self.bias([16])
 
@@ -120,18 +120,6 @@ class PolicyNetwork:
 
         final = tf.expand_dims(fully_connected2, -1)
         return final
-
-    def net_try5(self, inputs):
-
-        input_shape = inputs.get_shape().as_list()
-
-        fully_connected1 = tf.layers.dense(inputs, 4 )
-        conv_layer1 = tf.layers.conv2d(fully_connected1, 4, [5, 5],2, padding='same', activation=tf.nn.relu,
-                                               name="conv1")
-        fully_connected2 = tf.layers.dense(conv_layer1, 8)
-        conv_layer3 = tf.layers.conv2d(fully_connected2, 8, [3, 3], padding='same',
-                                               activation=tf.nn.relu,
-                                               name="conv3")
         fully_connected3 = tf.layers.dense(conv_layer3, 16)
         conv_layer4 = tf.layers.conv2d(fully_connected3, 16, [3, 3], padding='same',
                                                activation=tf.nn.relu,
@@ -142,15 +130,3 @@ class PolicyNetwork:
         return fully_connected4
 
 
-if __name__ == '__main__':
-    matrix = np.zeros((6, 7)).astype(np.float32)
-    matrix[([5,4,5],[2,2,3])] = 1
-    matrix[([5,4,5],[4,4,1])] = 2
-    matrix = matrix.reshape((6, 7, 1))
-    matrix = matrix[None, :, :, :]
-    batch_size = 50
-    reward = np.array([0,1,1,-1,1,0,1])
-    action = np.array([1] * 7)
-    action = action[None, :]
-    network = PolicyNetwork(0.1, 2, batch_size)
-    network.train(matrix, reward, action)
