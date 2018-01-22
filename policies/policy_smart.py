@@ -40,7 +40,7 @@ class SmartPolicy(Policy):
     def cast_string_args(self, policy_args):
         policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 50
         policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.1
-        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.95
+        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.01
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.1
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0.005
         policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in policy_args else 0.001
@@ -118,8 +118,8 @@ class SmartPolicy(Policy):
                         predicted_action[single_batch] = action
                         break
 
-            fixed_rewards = rewards + self.gamma * best_q
-
+            fixed_rewards = rewards + self.gamma * best_q * (1 - np.square(rewards))
+            # print(fixed_rewards)
             # illegal moves
             invalid = np.zeros((batch_size,))
             invalid = 0.0 * invalid + 1.0
@@ -162,6 +162,10 @@ class SmartPolicy(Policy):
 
     def act(self, round, prev_state, prev_action, reward, new_state, too_slow):
 
+        print('round num,',round)
+        print('preave state\n',prev_state,'\n')
+        print('preave action\n', prev_action, '\n')
+        print('new state\n',new_state)
         # log game state
         if DEBUG:
             if self._round_started:
@@ -201,6 +205,7 @@ class SmartPolicy(Policy):
             action = np.random.choice(np.arange(NUM_ACTION))
 
         finally:
+            print('new action\n', action)
             return action
 
     def get_random_action(self, new_state):
