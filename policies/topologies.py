@@ -67,11 +67,16 @@ class PolicyNetwork:
 
     def net_try2(self, inputs):
 
-        h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME')
-        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME',
+                                   kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
+        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
-        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu)
-        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
+        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
         # h_pool_shape = h_pool2.get_shape().as_list()
         fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
@@ -81,16 +86,7 @@ class PolicyNetwork:
         fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
                                                 biases_initializer=tf.random_normal_initializer(),
                                                 weights_initializer=tf.random_normal_initializer())
-        # W_fc1 = self.weight([h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3], 10])
-        # b_fc1 = self.bias([10])
-        #
-        # h_pool2_flat = tf.reshape(h_pool2, [-1, h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3]])
-        # h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        #
-        # W_fc2 = self.weight([10, 7])
-        # b_fc2 = self.bias([7])
 
-        # final = tf.matmul(h_fc1, W_fc2) + b_fc2
         final = tf.reshape(fc4, [-1,7,1])
         return final
 
@@ -172,9 +168,7 @@ class PolicyNetwork:
         final = tf.reshape(fc3, [-1, 7, 1])
         return final
 
-
-    def net_try7(self, inputs):
-        print("NETWORK 7")
+    def net_try8(self, inputs):
 
         input_shape = inputs.get_shape().as_list()
         input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])

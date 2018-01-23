@@ -9,6 +9,7 @@ import pickle
 from matplotlib import pyplot as plt
 from scipy import signal
 from scipy import ndimage as nd
+from scipy.ndimage import morphology as m
 
 DEBUG = True
 
@@ -43,12 +44,12 @@ class SmartPolicy(Policy):
 
     def cast_string_args(self, policy_args):
         policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 50
-        policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.2
-        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.95
+        policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.3
+        policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.98
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.1
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0.005
         policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in \
-                                                                              policy_args else 0.002
+                                                                              policy_args else 0.003
         policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 5000
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
@@ -123,31 +124,42 @@ class SmartPolicy(Policy):
 
             # get next action from network
             new_q = self.get_next_Q(next_states)
-            action_table = np.argsort(np.squeeze(new_q, axis=-1), axis=1)
+            # print('new_q',new_q)
+            action_table = np.fliplr(np.argsort(np.squeeze(new_q, axis=-1), axis=1))
             best_q = np.zeros((batch_size))
             predicted_action = np.zeros((batch_size))
 
             # replace invalid moves
+            invalid = np.zeros((batch_size,))
             for single_batch in np.arange(batch_size):
                 single_example = action_table[single_batch]
-                for action in single_example:
+                for i,action in enumerate(single_example):
                     if next_states[single_batch, 0, 0, action] == 0:
                         best_q[single_batch] = new_q[single_batch, action, 0]
-                        predicted_action[single_batch] = action
+                        if i == 0:
+                            predicted_action[single_batch] = action
                         break
-
-            fixed_rewards = rewards + self.gamma * best_q * (1 - np.square(rewards))
+                    else:
+                        predicted_action[single_batch] = action
+                        invalid[single_batch] = 1
+            # print('best_q', best_q)
+            fixed_rewards = (rewards + self.gamma * best_q * (1 - np.square(rewards)))+.5*(np.any(np.max(
+            np.max(states[np.arange(batch_size),1:,:,predicted_action.astype(np.int32)],axis=1),
+             axis=1)[...,None],axis = 1) >0)
+            # print('fixed_rewards',fixed_rewards)
 
             # illegal moves
-            invalid = np.zeros((batch_size,))
-            invalid = 0.0 * invalid + 1.0
 
+            invalid = 0.1 * invalid + 1.0
             # train
             feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
                          self.q_network.boards: states, self.q_network.punishment: invalid}
             _, loss, net = self.q_network.session.run([self.q_network.optimizer, self.q_network.loss,
                                                        self.q_network.q_vals], feed_dict=feed_dict)
+
+            # print(net)
             if DEBUG and round % 100 == 0:
+                print(net)
                 self.log("ROUND {} loss {}".format(round, loss))
 
         except Exception as ex:
@@ -170,6 +182,16 @@ class SmartPolicy(Policy):
         if self.epsilon > 0.01:
             self.epsilon -= self.epsilon_decay
 
+
+    def get_me_edges(self,state,mask):
+        convolv_stat = signal.convolve2d(state, mask, mode="same")
+        convolv_stat[convolv_stat != 3] = 0
+        line_in_state = m.binary_dilation(convolv_stat.astype(np.bool),
+                                                   structure=mask).astype(np.float32)
+        edges_in_state = (m.binary_dilation(line_in_state.astype(np.bool),
+                                                   structure=mask).astype(np.float32) - line_in_state).astype(np.float32)
+        return edges_in_state
+
     def re_represent_state(self, state):
         """
 
@@ -178,51 +200,26 @@ class SmartPolicy(Policy):
         """
 
         our_palce = state[:,:] == 1
-        us_three_in_a_row_mask = signal.convolve2d( our_palce,self.WIN_MASK, mode="same")
-        us_three_in_a_row_mask[np.where(us_three_in_a_row_mask != 3)] = 0
-        us_three_in_a_row_mask = nd.morphology.binary_dilation(us_three_in_a_row_mask.astype(np.bool),
-                                                             structure=self.WIN_MASK)
-        us_three_in_a_line_mask = signal.convolve2d( our_palce,self.WIN_MASK.T, mode="same")
-        us_three_in_a_line_mask[np.where(us_three_in_a_line_mask != 3)] = 0
-        us_three_in_a_line_mask = nd.morphology.binary_dilation(us_three_in_a_line_mask.astype(np.bool),
-                                                             structure=self.WIN_MASK.T)
-
-        us_three_in_a_diag1_mask = signal.convolve2d(our_palce, np.identity(3),mode="same")
-        us_three_in_a_diag1_mask[np.where(us_three_in_a_diag1_mask != 3)] = 0
-        us_three_in_a_diag1_mask = nd.morphology.binary_dilation(us_three_in_a_diag1_mask.astype(np.bool),
-                                                                structure=np.identity(3))
-
-        us_three_in_a_diag2_mask = signal.convolve2d( our_palce,np.flip(np.identity(3),axis=1),
-                                                     mode="same")
-        us_three_in_a_diag2_mask[np.where(us_three_in_a_diag2_mask != 3)] = 0
-        us_three_in_a_diag2_mask = nd.morphology.binary_dilation(us_three_in_a_diag2_mask.astype(np.bool),
-                                                                 structure=np.flip(np.identity(3),axis=1))
+        us_three_in_a_row_mask = self.get_me_edges(our_palce,self.WIN_MASK)
+        us_three_in_a_line_mask  = self.get_me_edges(our_palce,self.WIN_MASK.T)
+        us_three_in_a_diag1_mask = self.get_me_edges(our_palce, np.identity(3))
+        us_three_in_a_diag2_mask = self.get_me_edges(our_palce, np.flip(np.identity(3),axis=1))
 
         here_place = state[:, :] == -1
-        here_three_in_a_row_mask = signal.convolve2d( here_place,self.WIN_MASK, mode="same")
-        here_three_in_a_row_mask[np.where(here_three_in_a_row_mask != 3)] = 0
-        here_three_in_a_row_mask = nd.morphology.binary_dilation(here_three_in_a_row_mask.astype(np.bool),
-                                                                 structure=self.WIN_MASK)
-        here_three_in_a_line_mask = signal.convolve2d( here_place,self.WIN_MASK.T, mode="same")
-        here_three_in_a_line_mask[np.where(here_three_in_a_line_mask != 3)] = 0
-        here_three_in_a_line_mask = nd.morphology.binary_dilation(here_three_in_a_line_mask.astype(np.bool),
-                                                                 structure=self.WIN_MASK.T)
-        here_three_in_a_diag1_mask = signal.convolve2d(here_place,np.identity(3), mode="same")
-        here_three_in_a_diag1_mask[np.where(here_three_in_a_diag1_mask != 3)] = 0
-        here_three_in_a_diag1_mask = nd.morphology.binary_dilation(here_three_in_a_diag1_mask.astype(np.bool),
-                                                                 structure=np.identity(3))
-        here_three_in_a_diag2_mask = signal.convolve2d( here_place,np.flip(np.identity(3),axis=1),
-                                                      mode="same")
-        here_three_in_a_diag2_mask[np.where(here_three_in_a_diag2_mask != 3)] = 0
-        here_three_in_a_diag2_mask = nd.morphology.binary_dilation(here_three_in_a_diag2_mask.astype(np.bool),
-                                                                 structure=np.flip(np.identity(3),axis=1))
+        here_three_in_a_row_mask = self.get_me_edges(here_place, self.WIN_MASK)
+        here_three_in_a_line_mask = self.get_me_edges(here_place, self.WIN_MASK.T)
+        here_three_in_a_diag1_mask = self.get_me_edges(here_place, np.identity(3))
+        here_three_in_a_diag2_mask = self.get_me_edges(here_place, np.flip(np.identity(3),axis=1))
 
-        rows = (us_three_in_a_row_mask + here_three_in_a_row_mask)[None,:,:]
-        lines = (us_three_in_a_line_mask + here_three_in_a_line_mask)[None,:,:]
-        diag1 = (here_three_in_a_diag1_mask + us_three_in_a_diag1_mask)[None,:,:]
-        diag2 = (here_three_in_a_diag2_mask + us_three_in_a_diag2_mask)[None,:,:]
+        rows = ((us_three_in_a_row_mask + here_three_in_a_row_mask))[None,:,:]
+        lines = ((us_three_in_a_line_mask + here_three_in_a_line_mask))[None,:,:]
+        diag1 = ((here_three_in_a_diag1_mask + us_three_in_a_diag1_mask))[None,:,:]
+        diag2 = ((here_three_in_a_diag2_mask + us_three_in_a_diag2_mask))[None,:,:]
         state = state[None,:,:]
         full_state = np.concatenate((state,rows,lines,diag1,diag2),axis=0)
+        # for stat in full_state:
+        #     plt.imshow(stat,cmap = 'gray')
+        #     plt.show()
         return full_state
 
     def normalize_board(self, board):
@@ -261,6 +258,14 @@ class SmartPolicy(Policy):
             new_state = self.normalize_board(new_state)
             new_state = self.re_represent_state(new_state)
 
+            # use epsilon greedy
+            if np.random.rand() < self.epsilon:
+
+                action = self.get_random_action(new_state[0, :, :])
+            else:
+                # get next action from network
+                action = self.get_qNet_action(new_state)
+
             if prev_action is not None and prev_state is not None:
                 prev_state = self.normalize_board(prev_state)
                 prev_state = self.re_represent_state(prev_state)
@@ -268,21 +273,12 @@ class SmartPolicy(Policy):
                 # store parameters in memory
                 self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
 
-            # use epsilon greedy
-            if np.random.rand() < self.epsilon:
-
                 # choose random action
-                action = self.get_random_action(new_state[0, :, :])
 
-            else:
-                # get next action from network
-                action = self.get_qNet_action(new_state)
-
-            # print('new action\n', action)
+                # print('new action\n', action)
         except Exception as ex:
             print("Exception in act: %s %s" %(type(ex), ex))
             action = np.random.choice(np.arange(NUM_ACTION))
-
         finally:
 
             return action
@@ -300,7 +296,7 @@ class SmartPolicy(Policy):
     def get_qNet_action(self, new_state):
         new_state = new_state.reshape(1, 5, 6, 7)
         q_values = self.get_next_Q(new_state)
-        action_table = np.flipud(np.argsort(q_values, axis=1))
+        action_table = np.fliplr(np.argsort(q_values, axis=1))
 
         # choose first valid action
         for action in action_table[0, :, 0]:
