@@ -8,6 +8,8 @@ def single_run(args, log_file):
     out = []
     losses = []  # tuples (round, loss)
 
+    losses = []  # tuples (round, loss)
+    print(cmdline)
     with subprocess.Popen(cmdline, stdout=subprocess.PIPE, universal_newlines=True) as p:
         for line in p.stdout:
             print(line, end='')
@@ -82,7 +84,7 @@ if __name__ == '__main__':
     test_rounds = 1000
     log_file = 'fifth_epsilon'
 
-    final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 6), log_file)
+    final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 10), log_file)
 
     # train against self
     train_num = 'first_train'
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     single_run(test1_args, log_file)
 
     # test against minmax
-    smart1_args = 'load_from=models/{}1'.format(first_model_save)
+    smart1_args = 'load_from=models/{}1'.format(second_model_save)
     test2_args = ['-D={}'.format(test_rounds), '-A=SmartPolicy({});MinmaxAgent(depth=1)'.format(smart1_args), '-bi=RandomBoard',
                   '-t=test', '-l=logs/MinmaxDepth2.log']
     single_run(test2_args, log_file)

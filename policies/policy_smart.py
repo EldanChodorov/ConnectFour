@@ -143,14 +143,16 @@ class SmartPolicy(Policy):
                         predicted_action[single_batch] = action
                         invalid[single_batch] = 1
             # print('best_q', best_q)
-            fixed_rewards = (rewards + self.gamma * best_q * (1 - np.square(rewards)))+.5*(np.any(np.max(
-            np.max(states[np.arange(batch_size),1:,:,predicted_action.astype(np.int32)],axis=1),
-             axis=1)[...,None],axis = 1) >0)
+            # good_ack_boost = .5*(np.any(np.max(np.max(states[np.arange(batch_size),1:,:,predicted_action.astype(np.int32)],axis=1),
+            #  axis=1)[...,None],axis = 1) >0)
+
+
+            fixed_rewards = rewards + (self.gamma * best_q ) *(1 - np.square(rewards))
             # print('fixed_rewards',fixed_rewards)
 
             # illegal moves
 
-            invalid = 0.1 * invalid + 1.0
+            invalid = 0.3 * invalid + 1.0
             # train
             feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
                          self.q_network.boards: states, self.q_network.punishment: invalid}
