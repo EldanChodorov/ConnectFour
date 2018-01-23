@@ -28,7 +28,7 @@ class PolicyNetwork:
         self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
-        self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
+        self.session = tf.Session()
         self.session.run(self.init)
 
     def train(self, inputs, rewards, actions):
@@ -69,11 +69,13 @@ class PolicyNetwork:
         h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME',
                                    kernel_initializer=tf.random_normal_initializer(),
            bias_initializer=tf.random_normal_initializer())
-        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
         h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.random_normal_initializer(),
            bias_initializer=tf.random_normal_initializer())
-        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
         # h_pool_shape = h_pool2.get_shape().as_list()
         fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,

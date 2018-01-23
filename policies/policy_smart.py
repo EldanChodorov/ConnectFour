@@ -159,6 +159,7 @@ class SmartPolicy(Policy):
 
             # print(net)
             if DEBUG and round % 100 == 0:
+                print(net)
                 self.log("ROUND {} loss {}".format(round, loss))
 
         except Exception as ex:
