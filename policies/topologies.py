@@ -16,7 +16,7 @@ class PolicyNetwork:
 
         # placeholders
         self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7, 1], name="action_holder")
-        self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 5], name="boards")
+        self.boards = tf.placeholder(tf.float32, shape=[None, 5, 6, 7], name="boards")
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.q_vals = self.network_run(self.boards)
 
@@ -25,7 +25,7 @@ class PolicyNetwork:
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
 
-            self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
+        self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
@@ -54,7 +54,7 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try4(feed_inputs)
+        return self.net_try6(feed_inputs)
 
     def net_try1(self, inputs):
         conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
@@ -111,10 +111,12 @@ class PolicyNetwork:
         weight2 = self.weight([10, 7])
         bias2 = self.bias([7])
 
-        fully_connected2 =  tf.nn.sigmoid(tf.matmul(fully_connected1, weight2) + bias2)
+        fully_connected2 = tf.nn.relu(tf.matmul(fully_connected1, weight2) + bias2)
 
         final = tf.expand_dims(fully_connected2, -1)
         return final
+
+
         # fully_connected3 = tf.layers.dense(conv_layer3, 16)
         # conv_layer4 = tf.layers.conv2d(fully_connected3, 16, [3, 3], padding='same',
         #                                        activation=tf.nn.relu,
@@ -140,12 +142,20 @@ class PolicyNetwork:
         fully_connected2 = tf.matmul(fully_connected1, weight2) + bias2
 
         final = tf.expand_dims(fully_connected2, -1)
+
         return final
-        # fully_connected3 = tf.layers.dense(conv_layer3, 16)
-        # conv_layer4 = tf.layers.conv2d(fully_connected3, 16, [3, 3], padding='same',
-        #                                activation=tf.nn.relu,
-        #                                name="conv4")
-        # conv_layer5 = tf.layers.conv2d_transpose(conv_layer4, 4, [3, 3], 2)
-        # sum_layer1 = tf.reduce_sum(conv_layer5, reduction_indices=1)
-        # fully_connected4 = tf.layers.dense(sum_layer1, 1, activation=None)
-        # return fully_connected4
+
+    def net_try6(self, inputs):
+
+        input_shape = inputs.get_shape().as_list()
+        input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])
+
+        fc1 = tf.contrib.layers.fully_connected(input_flat, 128, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc2 = tf.contrib.layers.fully_connected(fc1, 64, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc3 = tf.contrib.layers.fully_connected(fc2, 7, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+
+        final = tf.reshape(fc3, [-1, 7, 1])
+        return final

@@ -84,22 +84,12 @@ class SmartPolicy(Policy):
                     self.transitions_memory.popleft()
 
                     # normalize board
-                new_state = np.copy(new_state)
-                if self.id == 1:
-                    new_state[np.where(new_state == 2)] = -1
-                else:
-                    new_state[np.where(new_state == 1)] = -1
-                    new_state[np.where(new_state == 2)] = 1
-                new_state = self.re_rpresent_state(new_state)
+                new_state = self.normalize_board(new_state)
+                new_state = self.re_represent_state(new_state)
                 if prev_action is not None and prev_state is not None:
                     prev_state = self.normalize_board(prev_state)
+                    prev_state = self.re_represent_state(prev_state)
 
-                    if self.id == 1:
-                        prev_state[np.where(prev_state == 2)] = -1
-                    else:
-                        prev_state[np.where(prev_state == 1)] = -1
-                        prev_state[np.where(prev_state == 2)] = 1
-                    prev_state = self.re_rpresent_state(prev_state)
                     # store parameters in memory
                     self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
 
@@ -122,13 +112,12 @@ class SmartPolicy(Policy):
 
             # reshape
             vector_actions = (np.eye(7)[actions]).reshape((batch_size, 7, 1))
-            next_states = next_states.reshape((batch_size, 6, 7, 5))
-            states = states.reshape((batch_size, 6, 7, 5))
+            next_states = next_states.reshape((batch_size, 5, 6, 7))
+            states = states.reshape((batch_size, 5, 6, 7))
 
             # get next action from network
             new_q = self.get_next_Q(next_states)
-            # print(new_q)
-            action_table = np.argsort(np.squeeze(new_q,axis=-1), axis=1)
+            action_table = np.argsort(np.squeeze(new_q, axis=-1), axis=1)
             best_q = np.zeros((batch_size))
             predicted_action = np.zeros((batch_size))
 
@@ -136,7 +125,7 @@ class SmartPolicy(Policy):
             for single_batch in np.arange(batch_size):
                 single_example = action_table[single_batch]
                 for action in single_example:
-                    if next_states[single_batch, 0, action, 0] == 0:
+                    if next_states[single_batch, 0, 0, action] == 0:
                         best_q[single_batch] = new_q[single_batch, action, 0]
                         predicted_action[single_batch] = action
                         break
@@ -175,9 +164,9 @@ class SmartPolicy(Policy):
         if self.epsilon > 0.01:
             self.epsilon -= self.epsilon_decay
 
-    def re_rpresent_state(self,state):
+    def re_represent_state(self, state):
         """
-        given an initial board, check that it is legal (no one has won yet and the size is OK).
+
         :param board: the board state.
         :return: True iff board is legal.
         """
@@ -205,12 +194,13 @@ class SmartPolicy(Policy):
                                                       mode="same")
         here_three_in_a_diag2_mask[np.where(here_three_in_a_diag2_mask != 3)] = 0
 
-        rows = (us_three_in_a_row_mask + here_three_in_a_row_mask)[:,:,None]
-        lines = (us_three_in_a_line_mask + here_three_in_a_line_mask)[:,:,None]
-        diag1 = (here_three_in_a_diag1_mask + us_three_in_a_diag1_mask)[:,:,None]
-        diag2 = (here_three_in_a_diag1_mask + us_three_in_a_diag2_mask)[:,:,None]
-        state = state[:,:,None]
-        full_state = np.concatenate((state,rows,lines,diag1,diag2),axis=-1)
+        rows = (us_three_in_a_row_mask + here_three_in_a_row_mask)[None,:,:]
+        lines = (us_three_in_a_line_mask + here_three_in_a_line_mask)[None,:,:]
+        diag1 = (here_three_in_a_diag1_mask + us_three_in_a_diag1_mask)[None,:,:]
+        diag2 = (here_three_in_a_diag1_mask + us_three_in_a_diag2_mask)[None,:,:]
+        state = state[None,:,:]
+        full_state = np.concatenate((state,rows,lines,diag1,diag2),axis=0)
+
         return full_state
 
     def normalize_board(self, board):
@@ -242,28 +232,29 @@ class SmartPolicy(Policy):
             if len(self.transitions_memory) >= self.memory_limit:
                 self.transitions_memory.popleft()
 
-
             # update learning rate
             if round % 1000 == 0:
                 self.update_rates()
 
             new_state = self.normalize_board(new_state)
-            new_state = self.re_rpresent_state(new_state)
+            new_state = self.re_represent_state(new_state)
+
+            if prev_action is not None and prev_state is not None:
+                prev_state = self.normalize_board(prev_state)
+                prev_state = self.re_represent_state(prev_state)
+
+                # store parameters in memory
+                self.transitions_memory.append(TransitionBatch(prev_state, prev_action, reward, new_state))
 
             # use epsilon greedy
             if np.random.rand() < self.epsilon:
 
                 # choose random action
-                action = self.get_random_action(new_state[:,:,0])
+                action = self.get_random_action(new_state[0, :, :])
 
             else:
                 # get next action from network
                 action = self.get_qNet_action(new_state)
-
-            middle_state = self.get_middle_state(new_state[:,:,0], action)
-            middle_state = self.re_rpresent_state(middle_state)
-            # store parameters in memory
-            self.transitions_memory.append(TransitionBatch(new_state, action, reward, middle_state))
 
             # print('new action\n', action)
         except Exception as ex:
@@ -285,13 +276,13 @@ class SmartPolicy(Policy):
         return action
 
     def get_qNet_action(self, new_state):
-        new_state = new_state.reshape(1, 6, 7, 5)
+        new_state = new_state.reshape(1, 5, 6, 7)
         q_values = self.get_next_Q(new_state)
-        # print(q_values)
         action_table = np.flipud(np.argsort(q_values, axis=1))
 
+        # choose first valid action
         for action in action_table[0, :, 0]:
-            if new_state[0, 0, action, 0] == 0:
+            if new_state[0, 0, 0, action] == 0:
                 return action
 
     def save_model(self):
