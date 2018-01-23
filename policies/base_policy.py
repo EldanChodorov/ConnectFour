@@ -84,7 +84,6 @@ class Policy(mp.Process):
         :param type: the type of the message (e.g. "error" or "debug"...)
         """
         self.lq.put((str(self.id), type, msg))
-        print(msg)
 
 
     def get_legal_moves(self, board_state):

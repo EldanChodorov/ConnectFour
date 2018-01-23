@@ -12,10 +12,11 @@ def single_run(args, log_file):
         for line in p.stdout:
             print(line, end='')
 
-            if 'loss' in line:
+            if 'loss' in line and 'ROUND' in line:
+                line = line.strip('\n')
                 line_list = line.split(' ')
                 val = line_list[line_list.index('loss') + 1]
-                round = line_list[line_list.index('ROUND') + 1]
+                round = line_list[line_list.index('\tROUND') + 1]
                 losses.append((round, val))
         if p.stderr:
             for line in p.stderr:
@@ -36,8 +37,8 @@ def single_run(args, log_file):
 
 
 def plot_loss(loss_list):
-    x = [l[0] for l in loss_list]
-    y = [l[1] for l in loss_list]
+    x = [int(l[0]) for l in loss_list]
+    y = [float(l[1]) for l in loss_list]
     plt.figure()
     plt.scatter(x, y)
     plt.xticks(x)
@@ -87,10 +88,10 @@ if __name__ == '__main__':
     test_rounds = 1000
     log_file = 'first'
 
-    # final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 9), log_file)
+    final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 2), log_file)
 
     # train against self
-    rounds = 100
+    rounds = 1000
     first_model_save = 'SmartSmart_{}'.format(log_file)
     smart1_args = 'save_to={}1'.format(first_model_save)
     smart2_args = 'save_to={}2'.format(first_model_save)
