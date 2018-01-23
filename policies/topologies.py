@@ -168,6 +168,19 @@ class PolicyNetwork:
         final = tf.reshape(fc3, [-1, 7, 1])
         return final
 
+    def net_try7(self, inputs):
+        print("NETWORK 7")
+
+        input_shape = inputs.get_shape().as_list()
+        input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])
+
+        # fc1 = tf.contrib.layers.fully_connected(input_flat, 256)
+        fc2 = tf.contrib.layers.fully_connected(input_flat, 128)
+        fc3 = tf.contrib.layers.fully_connected(fc2, 64)
+        fc4 = tf.contrib.layers.fully_connected(fc3, 7)
+        final = tf.reshape(fc4, [-1, 7, 1])
+        return final
+
     def net_try8(self, inputs):
 
         input_shape = inputs.get_shape().as_list()
@@ -192,10 +205,10 @@ class PolicyNetwork:
     def net_try9(self, inputs):
         print("NETWORK 9")
         in_channels = inputs.get_shape().as_list()[-1]
-        h_conv1 = tf.nn.relu(tf.nn.conv2d(inputs, [5, 5, in_channels, 8], strides=1, padding='SAME'))
+        h_conv1 = tf.nn.relu(tf.nn.conv2d(inputs, [5, 5, in_channels, 8], strides=[1, 1, 1, 1], padding='SAME'))
         h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        h_conv2 = tf.nn.relu(tf.nn.conv2d(h_pool1, [5, 5, 8, 16], strides=1, padding='SAME'))
+        h_conv2 = tf.nn.relu(tf.nn.conv2d(h_pool1, [5, 5, 8, 16], strides=[1, 1, 1, 1], padding='SAME'))
         h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
