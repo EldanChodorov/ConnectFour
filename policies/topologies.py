@@ -65,26 +65,24 @@ class PolicyNetwork:
         return fully_connected1
 
     def net_try2(self, inputs):
-
         h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME',
-                                   kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
+                                   kernel_initializer= tf.truncated_normal(stddev=0.2),
+                                    bias_initializer=tf.constant(0.1))
 
-        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
+        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.truncated_normal(stddev=0.2),
+           bias_initializer=tf.constant(0.1))
+        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # h_pool_shape = h_pool2.get_shape().as_list()
         fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
-                                                biases_initializer=tf.random_normal_initializer(),
-                                                weights_initializer=tf.random_normal_initializer())
+                                                biases_initializer=tf.truncated_normal(stddev=0.2),
+                                                weights_initializer=tf.constant(0.1))
         h_pool3 = tf.nn.max_pool(fc3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
-                                                biases_initializer=tf.random_normal_initializer(),
-                                                weights_initializer=tf.random_normal_initializer())
+                                                biases_initializer=tf.truncated_normal(stddev=0.2),
+                                                weights_initializer=tf.constant(0.1))
 
         final = tf.reshape(fc4, [-1,7,1])
         return final
@@ -173,3 +171,4 @@ class PolicyNetwork:
         fc4 = tf.contrib.layers.fully_connected(fc3, 7)
         final = tf.reshape(fc4, [-1, 7, 1])
         return final
+
