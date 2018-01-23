@@ -8,8 +8,9 @@ import tensorflow as tf
 import pickle
 from matplotlib import pyplot as plt
 from scipy import signal
+from scipy import ndimage as nd
 
-DEBUG = False
+DEBUG = True
 
 
 def timeit(method):
@@ -42,11 +43,12 @@ class SmartPolicy(Policy):
 
     def cast_string_args(self, policy_args):
         policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 50
-        policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.1
+        policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.2
         policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.95
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.1
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0.005
-        policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in policy_args else 0.001
+        policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in \
+                                                                              policy_args else 0.002
         policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 5000
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
@@ -79,6 +81,10 @@ class SmartPolicy(Policy):
                 if DEBUG:
                     if not self._round_started and round % 500 == 0:
                         self._round_started = True
+
+                    if self._round_started  and round % 500 != 0:
+                        self._round_started = False
+
 
                 if len(self.transitions_memory) >= self.memory_limit:
                     self.transitions_memory.popleft()
@@ -174,33 +180,49 @@ class SmartPolicy(Policy):
         our_palce = state[:,:] == 1
         us_three_in_a_row_mask = signal.convolve2d( our_palce,self.WIN_MASK, mode="same")
         us_three_in_a_row_mask[np.where(us_three_in_a_row_mask != 3)] = 0
-
+        us_three_in_a_row_mask = nd.morphology.binary_dilation(us_three_in_a_row_mask.astype(np.bool),
+                                                             structure=self.WIN_MASK)
         us_three_in_a_line_mask = signal.convolve2d( our_palce,self.WIN_MASK.T, mode="same")
         us_three_in_a_line_mask[np.where(us_three_in_a_line_mask != 3)] = 0
+        us_three_in_a_line_mask = nd.morphology.binary_dilation(us_three_in_a_line_mask.astype(np.bool),
+                                                             structure=self.WIN_MASK.T)
+
         us_three_in_a_diag1_mask = signal.convolve2d(our_palce, np.identity(3),mode="same")
         us_three_in_a_diag1_mask[np.where(us_three_in_a_diag1_mask != 3)] = 0
+        us_three_in_a_diag1_mask = nd.morphology.binary_dilation(us_three_in_a_diag1_mask.astype(np.bool),
+                                                                structure=np.identity(3))
+
         us_three_in_a_diag2_mask = signal.convolve2d( our_palce,np.flip(np.identity(3),axis=1),
                                                      mode="same")
         us_three_in_a_diag2_mask[np.where(us_three_in_a_diag2_mask != 3)] = 0
+        us_three_in_a_diag2_mask = nd.morphology.binary_dilation(us_three_in_a_diag2_mask.astype(np.bool),
+                                                                 structure=np.flip(np.identity(3),axis=1))
 
         here_place = state[:, :] == -1
         here_three_in_a_row_mask = signal.convolve2d( here_place,self.WIN_MASK, mode="same")
         here_three_in_a_row_mask[np.where(here_three_in_a_row_mask != 3)] = 0
+        here_three_in_a_row_mask = nd.morphology.binary_dilation(here_three_in_a_row_mask.astype(np.bool),
+                                                                 structure=self.WIN_MASK)
         here_three_in_a_line_mask = signal.convolve2d( here_place,self.WIN_MASK.T, mode="same")
         here_three_in_a_line_mask[np.where(here_three_in_a_line_mask != 3)] = 0
+        here_three_in_a_line_mask = nd.morphology.binary_dilation(here_three_in_a_line_mask.astype(np.bool),
+                                                                 structure=self.WIN_MASK.T)
         here_three_in_a_diag1_mask = signal.convolve2d(here_place,np.identity(3), mode="same")
         here_three_in_a_diag1_mask[np.where(here_three_in_a_diag1_mask != 3)] = 0
+        here_three_in_a_diag1_mask = nd.morphology.binary_dilation(here_three_in_a_diag1_mask.astype(np.bool),
+                                                                 structure=np.identity(3))
         here_three_in_a_diag2_mask = signal.convolve2d( here_place,np.flip(np.identity(3),axis=1),
                                                       mode="same")
         here_three_in_a_diag2_mask[np.where(here_three_in_a_diag2_mask != 3)] = 0
+        here_three_in_a_diag2_mask = nd.morphology.binary_dilation(here_three_in_a_diag2_mask.astype(np.bool),
+                                                                 structure=np.flip(np.identity(3),axis=1))
 
         rows = (us_three_in_a_row_mask + here_three_in_a_row_mask)[None,:,:]
         lines = (us_three_in_a_line_mask + here_three_in_a_line_mask)[None,:,:]
         diag1 = (here_three_in_a_diag1_mask + us_three_in_a_diag1_mask)[None,:,:]
-        diag2 = (here_three_in_a_diag1_mask + us_three_in_a_diag2_mask)[None,:,:]
+        diag2 = (here_three_in_a_diag2_mask + us_three_in_a_diag2_mask)[None,:,:]
         state = state[None,:,:]
         full_state = np.concatenate((state,rows,lines,diag1,diag2),axis=0)
-
         return full_state
 
     def normalize_board(self, board):

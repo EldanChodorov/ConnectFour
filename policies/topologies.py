@@ -20,7 +20,7 @@ class PolicyNetwork:
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.q_vals = self.network_run(self.boards)
 
-        self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
+        self.action = tf.reduce_max(tf.multiply(self.q_vals,self.actions_holder), reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
@@ -54,7 +54,7 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try6(feed_inputs)
+        return self.net_try2(feed_inputs)
 
     def net_try1(self, inputs):
         conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
@@ -69,32 +69,38 @@ class PolicyNetwork:
         h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME')
         h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        h_conv2 = tf.layers.conv2d(h_pool1,16,[3,3],padding='SAME',activation=tf.nn.relu)
+        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu)
         h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        h_pool_shape = h_pool2.get_shape().as_list()
+        # h_pool_shape = h_pool2.get_shape().as_list()
+        fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        h_pool3 = tf.nn.max_pool(fc3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        # W_fc1 = self.weight([h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3], 10])
+        # b_fc1 = self.bias([10])
+        #
+        # h_pool2_flat = tf.reshape(h_pool2, [-1, h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3]])
+        # h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        #
+        # W_fc2 = self.weight([10, 7])
+        # b_fc2 = self.bias([7])
 
-        W_fc1 = self.weight([h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3], 10])
-        b_fc1 = self.bias([10])
-
-        h_pool2_flat = tf.reshape(h_pool2, [-1, h_pool_shape[1] * h_pool_shape[2] * h_pool_shape[3]])
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-        W_fc2 = self.weight([10, 7])
-        b_fc2 = self.bias([7])
-
-        final = tf.matmul(h_fc1, W_fc2) + b_fc2
-        final = tf.expand_dims(final, -1)
+        # final = tf.matmul(h_fc1, W_fc2) + b_fc2
+        final = tf.reshape(fc4, [-1,7,1])
         return final
 
 
     def net_try3(self, inputs):
-        conv_layer1 = tf.contrib.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
-        conv_layer2 = tf.contrib.layers.conv2d(conv_layer1, 16, [5, 5], padding='same', activation=tf.nn.relu, name="conv2")
-        conv_layer3 = tf.contrib.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
-        conv_layer4 = tf.contrib.layers.conv2d(conv_layer3, 64, [3, 3], padding='same', activation=tf.nn.relu, name="conv4")
+        conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu)
+        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [5, 5], padding='same', activation=tf.nn.relu)
+        conv_layer3 = tf.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu)
+        conv_layer4 = tf.layers.conv2d(conv_layer3, 64, [3, 3], padding='same', activation=tf.nn.relu)
         sum_layer1 = tf.reduce_sum(conv_layer4, reduction_indices=1)
-        fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
+        fully_connected1 = tf.layers.Dense(sum_layer1, 1)
         return fully_connected1
 
     def net_try4(self, inputs):
