@@ -20,7 +20,7 @@ class PolicyNetwork:
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
         self.q_vals = self.network_run(self.boards)
 
-        self.action = tf.reduce_max(tf.multiply(self.q_vals,self.actions_holder), reduction_indices=1)
+        self.action = tf.reduce_max(tf.mul(self.q_vals, self.actions_holder), reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2) * self.punishment)
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
@@ -54,41 +54,46 @@ class PolicyNetwork:
         :param feed_inputs: matrix [numpy.ndarray] 6x7
         :return: result from network. - [1X7]
         '''
-        return self.net_try2(feed_inputs)
+        return self.net_try6(feed_inputs)
 
     def net_try1(self, inputs):
-        conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu, name="conv1")
-        conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [3, 3], padding='same', activation=tf.nn.relu, name="conv2")
-        conv_layer3 = tf.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu, name="conv3")
+        print("NETWORK 1")
+        conv_layer1 = tf.nn.relu(tf.nn.conv2d(inputs, 8, [5, 5], padding='same', name="conv1"))
+        conv_layer2 = tf.nn.relu(tf.nn.conv2d(conv_layer1, 16, [3, 3], padding='same', name="conv2"))
+        conv_layer3 = tf.nn.relu(tf.nn.conv2d(conv_layer2, 32, [3, 3], padding='same', name="conv3"))
         sum_layer1 = tf.reduce_sum(conv_layer3, reduction_indices=1)
         fully_connected1 = tf.contrib.layers.fully_connected(sum_layer1, 1, activation_fn=None)
         return fully_connected1
 
-    def net_try2(self, inputs):
+
+
         h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME',
-                                   kernel_initializer= tf.truncated_normal(stddev=0.2),
-                                    bias_initializer=tf.constant(0.1))
+                                   kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
+        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
-        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
-
-        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.truncated_normal(stddev=0.2),
-           bias_initializer=tf.constant(0.1))
-        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
+        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
+           bias_initializer=tf.random_normal_initializer())
 
         # h_pool_shape = h_pool2.get_shape().as_list()
         fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
-                                                biases_initializer=tf.truncated_normal(stddev=0.2),
-                                                weights_initializer=tf.constant(0.1))
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
         h_pool3 = tf.nn.max_pool(fc3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
-                                                biases_initializer=tf.truncated_normal(stddev=0.2),
-                                                weights_initializer=tf.constant(0.1))
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
 
         final = tf.reshape(fc4, [-1,7,1])
         return final
 
 
     def net_try3(self, inputs):
+        print("NETWORK 3")
+
         conv_layer1 = tf.layers.conv2d(inputs, 8, [5, 5], padding='same', activation=tf.nn.relu)
         conv_layer2 = tf.layers.conv2d(conv_layer1, 16, [5, 5], padding='same', activation=tf.nn.relu)
         conv_layer3 = tf.layers.conv2d(conv_layer2, 32, [3, 3], padding='same', activation=tf.nn.relu)
@@ -98,6 +103,7 @@ class PolicyNetwork:
         return fully_connected1
 
     def net_try4(self, inputs):
+        print("NETWORK 4")
 
         input_shape = inputs.get_shape().as_list()
 
@@ -127,6 +133,7 @@ class PolicyNetwork:
         # return fully_connected4
 
     def net_try5(self, inputs):
+        print("NETWORK 5")
 
         input_shape = inputs.get_shape().as_list()
         weight1 = self.weight([input_shape[1] * input_shape[2] * input_shape[3], 10])
@@ -146,6 +153,7 @@ class PolicyNetwork:
         return final
 
     def net_try6(self, inputs):
+        print("NETWORK 6")
 
         input_shape = inputs.get_shape().as_list()
         input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])
@@ -165,10 +173,37 @@ class PolicyNetwork:
         input_shape = inputs.get_shape().as_list()
         input_flat = tf.reshape(inputs, [-1, input_shape[1] * input_shape[2] * input_shape[3]])
 
-        # fc1 = tf.contrib.layers.fully_connected(input_flat, 256)
-        fc2 = tf.contrib.layers.fully_connected(input_flat, 128)
-        fc3 = tf.contrib.layers.fully_connected(fc2, 64)
-        fc4 = tf.contrib.layers.fully_connected(fc3, 7)
-        final = tf.reshape(fc4, [-1, 7, 1])
+        fc1 = tf.contrib.layers.fully_connected(input_flat, 256, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc2 = tf.contrib.layers.fully_connected(fc1, 128, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc3 = tf.contrib.layers.fully_connected(fc2, 64, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc4 = tf.contrib.layers.fully_connected(fc3, 32, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc5 = tf.contrib.layers.fully_connected(fc4, 16, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        fc6 = tf.contrib.layers.fully_connected(fc5, 7, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+
+        final = tf.reshape(fc6, [-1, 7, 1])
         return final
 
+    def net_try9(self, inputs):
+        print("NETWORK 9")
+        in_channels = inputs.get_shape().as_list()[-1]
+        h_conv1 = tf.nn.relu(tf.nn.conv2d(inputs, [5, 5, in_channels, 8], strides=1, padding='SAME'))
+        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        h_conv2 = tf.nn.relu(tf.nn.conv2d(h_pool1, [5, 5, 8, 16], strides=1, padding='SAME'))
+        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        h_pool3 = tf.nn.max_pool(fc3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
+                                                biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer())
+        final = tf.reshape(fc4, [-1, 7, 1])
+        return final
