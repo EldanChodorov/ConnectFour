@@ -4,10 +4,10 @@ from matplotlib import pyplot as plt
 
 def single_run(args, log_file):
 
-    cmdline = ['python3', 'Connect4.py'] + args
+    cmdline = ['python', 'Connect4.py'] + args
 
     losses = []  # tuples (round, loss)
-
+    print(cmdline)
     with subprocess.Popen(cmdline, stdout=subprocess.PIPE, universal_newlines=True) as p:
         for line in p.stdout:
             print(line, end='')
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     test_rounds = 1000
     log_file = 'first'
 
-    final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 2), log_file)
+    final_log('Starting log...      test rounds {}    topology net #{}'.format(test_rounds, 10), log_file)
 
     # train against self
     rounds = 1000
@@ -119,7 +119,7 @@ if __name__ == '__main__':
         exit(err)
 
     # test against minmax
-    smart1_args = 'load_from=models/{}1'.format(first_model_save)
+    smart1_args = 'load_from=models/{}1'.format(second_model_save)
     test2_args = ['-D={}'.format(test_rounds), '-A=SmartPolicy({});MinmaxAgent(depth=1)'.format(smart1_args), '-bi=RandomBoard',
                   '-t=test', '-l=logs/SmartMinMaxD1Test2.log']
     err = single_run(test2_args, log_file)
