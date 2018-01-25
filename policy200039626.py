@@ -1,10 +1,16 @@
-import numpy as np
-from policies.base_policy import Policy
-import random
+'''
+Connect Four: Machine Learning implementation for policy to play Connect Four game.
+Course: Advanced Practical Machine Learning, huji 2017
+'''
+
+import gc
 import time
-from collections import deque
-import tensorflow as tf
+import random
 import pickle
+import numpy as np
+import tensorflow as tf
+from collections import deque
+from policies.base_policy import Policy
 
 
 EMPTY_VAL = 0
@@ -262,7 +268,6 @@ class Policy200039626(Policy):
                 # choose random action
                 action = self.get_random_action(new_state)
 
-
             else:
                 # get next action from network
                 action = self.get_qNet_action(encapsulated_boards, winning_vec)
@@ -270,18 +275,14 @@ class Policy200039626(Policy):
             # store parameters in memory
             if self.mode == 'train':
                 if prev_action is not None and prev_state is not None:
-                    c = time.time()
                     prev_encapsulated_boards = self.hot_boards(prev_state)
                     prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
 
-                    d = time.time()
-                    print("store params time", d-c)
                     self.transitions_memory.append(TransitionBatch(prev_encapsulated_boards, prev_action, reward,
                                                                    encapsulated_boards, prev_winning_vec, winning_vec))
 
                     # clear memory if full
                     if len(self.transitions_memory) >= self.memory_limit:
-                        print("popped")
                         self.transitions_memory.popleft()
 
         except Exception as ex:
@@ -328,6 +329,7 @@ class Policy200039626(Policy):
             w = self.session.run(v)
             weights.append(w)
         print("Model saved to %s" % self.save_to)
+        del self.session
         return weights, self.save_to
 
     def network_run(self, board, action_vec):
@@ -430,3 +432,4 @@ class Policy200039626(Policy):
             self.enemy_id = 2
         else:
             self.enemy_id = 1
+
