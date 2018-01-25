@@ -18,13 +18,13 @@ class PolicyNetwork:
         # Q network variables
         self.actions_holder = tf.placeholder(tf.float32, shape=[None, 7, 1], name="action_holder")
         self.boards = tf.placeholder(tf.float32, shape=[None, 6, 7, 2], name="boards")
-        self.action_vec = tf.placeholder(tf.float32, shape=[None, 7, 1], name="actions_vector")
+        self.winning_vec = tf.placeholder(tf.float32, shape=[None, 7, 2], name="actions_vector")
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
 
-        self.q_vals = self.network_run(self.boards, self.action_vec)
+        self.q_vals = self.network_run(self.boards, self.winning_vec)
         # self.c_vals = self.C_network_run(self.boards)
 
-        self.action = tf.reduce_max(self.q_vals*self.actions_holder, reduction_indices=1)
+        self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
         self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2))
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
@@ -79,7 +79,7 @@ class PolicyNetwork:
         :param action_vec: (?, 7)
         :return:
         '''
-        return self.net_try12(boards, action_vec)
+        return self.net_try16(boards, action_vec)
 
     def network_run2(self, feed_inputs):
         '''
@@ -101,29 +101,6 @@ class PolicyNetwork:
         return fully_connected1
 
 
-
-        h_conv1 = tf.layers.conv2d(inputs,8, [5,5],activation=tf.nn.relu, padding='SAME',
-                                   kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-        h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-
-        h_conv2 = tf.layers.conv2d(h_pool1,16,[5,5],padding='SAME',activation=tf.nn.relu,kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-        h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',kernel_initializer=tf.random_normal_initializer(),
-           bias_initializer=tf.random_normal_initializer())
-
-        # h_pool_shape = h_pool2.get_shape().as_list()
-        fc3 = tf.contrib.layers.fully_connected(h_pool2, 16,
-                                                biases_initializer=tf.random_normal_initializer(),
-                                                weights_initializer=tf.random_normal_initializer())
-        h_pool3 = tf.nn.max_pool(fc3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        fc4 = tf.contrib.layers.fully_connected(h_pool3, 7,
-                                                biases_initializer=tf.random_normal_initializer(),
-                                                weights_initializer=tf.random_normal_initializer())
-
-        final = tf.reshape(fc4, [-1,7,1])
-        return final
 
 
     def net_try3(self, inputs):
@@ -267,7 +244,7 @@ class PolicyNetwork:
         outer_lyears_shape = outer_lyears.get_shape().as_list()
         flatten_outer = tf.reshape(outer_lyears, [-1, outer_lyears_shape[1] * outer_lyears_shape[2]])
         flatten_inner = tf.reshape(first_stat, [-1, first_stat_shape[1] * first_stat_shape[2]])
-        total_flatten = tf.concat([flatten_inner,flatten_outer],reduction_indices=1)
+        total_flatten = tf.concat(0,[flatten_inner,flatten_outer])
         fc1 = tf.contrib.layers.fully_connected(total_flatten, 64,
                                                 biases_initializer=tf.random_normal_initializer(),
                                                 weights_initializer=tf.random_normal_initializer())
@@ -369,3 +346,101 @@ class PolicyNetwork:
                                                            weights_initializer=tf.random_normal_initializer(), activation_fn=None)
             final = tf.reshape(connect_fc, [-1, 7, 1])
             return final
+
+    def net_try13(self, boards, winning_vec):
+        vac_shape = winning_vec.get_shape().as_list()
+        action_vec = tf.reshape(winning_vec, [-1, vac_shape[1] * vac_shape[2]])
+        fc3 = tf.contrib.layers.fully_connected(action_vec, 7, biases_initializer=tf.random_normal_initializer(),
+                                                weights_initializer=tf.random_normal_initializer(), scope='fc3',
+                                                activation_fn=tf.nn.tanh)
+        final = tf.reshape(fc3, [-1, 7, 1])
+        return final
+
+    def net_try14(self, boards, action_vec):
+        print("NETWORK 14")
+
+        with tf.variable_scope('net14'):
+            board_shape = boards.get_shape().as_list()
+            flatten_board = tf.reshape(boards, [-1, board_shape[1] * board_shape[2] * board_shape[3]])
+            action_vec = tf.squeeze(action_vec, [-1])
+            fc1 = tf.contrib.layers.fully_connected(flatten_board, 256, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc1',
+                                                    activation_fn=tf.nn.sigmoid)
+            fc2 = tf.contrib.layers.fully_connected(fc1, 128, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc2',
+                                                    activation_fn=tf.nn.sigmoid)
+            fc3 = tf.contrib.layers.fully_connected(fc2, 7, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc3',
+                                                    activation_fn=tf.nn.sigmoid)
+
+            # fc_v = tf.contrib.layers.fully_connected(action_vec, 64, biases_initializer=tf.random_normal_initializer(),
+            #                                          weights_initializer=tf.random_normal_initializer(), scope='fc4',
+            #                                          activation_fn=tf.nn.tanh)
+            # fc_v2 = tf.contrib.layers.fully_connected(fc_v, 7, biases_initializer=tf.random_normal_initializer(),
+            #                                           weights_initializer=tf.random_normal_initializer(), scope='fc5',
+            #                                           activation_fn=tf.nn.tanh)
+            final_vec = tf.concat(1,[fc3, action_vec])
+            connect_fc = tf.contrib.layers.fully_connected(final_vec, 7,
+                                                           biases_initializer=tf.random_normal_initializer(), scope='fc6',
+                                                           weights_initializer=tf.random_normal_initializer(),
+                                                           activation_fn=tf.nn.sigmoid)
+            final = tf.reshape(connect_fc, [-1, 7, 1])
+            return final
+
+    def net_try15(self, boards, action_vec):
+        print("NETWORK 15")
+
+        with tf.variable_scope('net14'):
+            board_shape = boards.get_shape().as_list()
+            flatten_board = tf.reshape(boards, [-1, board_shape[1] * board_shape[2] * board_shape[3]])
+            action_vec = tf.squeeze(action_vec, [-1])
+            fc1 = tf.contrib.layers.fully_connected(flatten_board, 256, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc1',
+                                                    activation_fn=tf.nn.tanh)
+            fc2 = tf.contrib.layers.fully_connected(fc1, 128, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc2',
+                                                    activation_fn=tf.nn.tanh)
+            fc3 = tf.contrib.layers.fully_connected(fc2, 7, biases_initializer=tf.random_normal_initializer(),
+                                                    weights_initializer=tf.random_normal_initializer(), scope='fc3',
+                                                    activation_fn=tf.nn.tanh)
+
+            # fc_v = tf.contrib.layers.fully_connected(action_vec, 64, biases_initializer=tf.random_normal_initializer(),
+            #                                          weights_initializer=tf.random_normal_initializer(), scope='fc4',
+            #                                          activation_fn=tf.nn.tanh)
+            # fc_v2 = tf.contrib.layers.fully_connected(fc_v, 7, biases_initializer=tf.random_normal_initializer(),
+            #                                           weights_initializer=tf.random_normal_initializer(), scope='fc5',
+            #                                           activation_fn=tf.nn.tanh)
+            final_vec = tf.concat(1, [fc3, action_vec])
+            connect_fc = tf.contrib.layers.fully_connected(final_vec, 7,
+                                                           biases_initializer=tf.random_normal_initializer(), scope='fc6',
+                                                           weights_initializer=tf.random_normal_initializer(),
+                                                           activation_fn=tf.nn.tanh)
+            final = tf.reshape(connect_fc, [-1, 7, 1])
+            return final
+
+
+
+    def net_try16(self, board, action_vec):
+        print("NETWORK 3")
+        conv_layer1 = tf.contrib.layers.conv2d(board, 8, [5, 5], padding='SAME', activation_fn=tf.nn.tanh)
+        conv_layer2 = tf.contrib.layers.conv2d(conv_layer1, 16, [5, 5], padding='SAME', activation_fn=tf.nn.tanh)
+        conv_layer3 = tf.contrib.layers.conv2d(conv_layer2, 32, [3, 3], padding='SAME', activation_fn=tf.nn.tanh)
+        conv_layer4 = tf.contrib.layers.conv2d(conv_layer3, 1, [3, 3], padding='SAME', activation_fn=tf.nn.tanh)
+
+        out_shape = conv_layer4.get_shape().as_list()
+        flat_out = tf.reshape(conv_layer4, [-1, out_shape[1] * out_shape[2]])
+        fc = tf.contrib.layers.fully_connected(flat_out, 14, tf.nn.tanh, weights_initializer=tf.random_normal_initializer(),
+                                               biases_initializer=tf.random_normal_initializer())
+        fc = tf.reshape(fc, [-1, 14])
+        action_vec = tf.reshape(action_vec, [-1, 14])
+
+        together = tf.concat(1, [fc, action_vec])
+        connect_fc = tf.contrib.layers.fully_connected(together, 7, biases_initializer=tf.random_normal_initializer(),
+                                                       scope='fc6', weights_initializer=tf.random_normal_initializer(),
+                                                       activation_fn=tf.nn.tanh)
+        final = tf.reshape(connect_fc, [-1, 7, 1])
+        return final
+
+
+def printShape(tensor):
+    print(tensor.get_shape().as_list())
