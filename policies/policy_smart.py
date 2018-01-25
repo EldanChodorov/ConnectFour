@@ -38,7 +38,6 @@ class Policy200039626(Policy):
         policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 30000
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
-        policy_args['c_iters'] = policy_args['c_iters'] if 'c_iters' in policy_args else 100
         policy_args['policy_learn_time'] = policy_args['policy_learn_time'] if 'policy_learn_time' in policy_args else 0.1
         return policy_args
 
@@ -82,7 +81,6 @@ class Policy200039626(Policy):
 
     def learn(self, round, prev_state, prev_action, reward, new_state, too_slow):
         '''Perform learning process of the policy.'''
-
         try:
             # update values of epsilon for exploration-exploitation tradeoff
             if self.mode == 'train' and self.next_decay == round:
@@ -100,6 +98,7 @@ class Policy200039626(Policy):
             total_time_past = 0
 
             while total_time_past + self.norm_learn_time < self.policy_learn_time:
+
                 if len(self.round_time_list) >= 1000:
                     self.round_time_list.popleft()
                 start_time = time.time()
@@ -142,6 +141,7 @@ class Policy200039626(Policy):
                 feed_dict = {self.rewards: fixed_rewards, self.actions_holder: vector_actions,
                              self.boards: states ,self.winning_vec: prev_winning_vec}
                 _, loss, net = self.session.run([self.optimizer, self.loss, self.q_vals], feed_dict=feed_dict)
+
                 round_tim = time.time() - start_time
                 total_time_past += round_tim
                 self.round_time_list.append(round_tim)
@@ -262,6 +262,7 @@ class Policy200039626(Policy):
                 # choose random action
                 action = self.get_random_action(new_state)
 
+
             else:
                 # get next action from network
                 action = self.get_qNet_action(encapsulated_boards, winning_vec)
@@ -269,14 +270,18 @@ class Policy200039626(Policy):
             # store parameters in memory
             if self.mode == 'train':
                 if prev_action is not None and prev_state is not None:
+                    c = time.time()
                     prev_encapsulated_boards = self.hot_boards(prev_state)
                     prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
 
+                    d = time.time()
+                    print("store params time", d-c)
                     self.transitions_memory.append(TransitionBatch(prev_encapsulated_boards, prev_action, reward,
                                                                    encapsulated_boards, prev_winning_vec, winning_vec))
 
                     # clear memory if full
                     if len(self.transitions_memory) >= self.memory_limit:
+                        print("popped")
                         self.transitions_memory.popleft()
 
         except Exception as ex:
@@ -361,7 +366,7 @@ class Policy200039626(Policy):
         fc = tf.reshape(fc, [-1, 14])
         action_vec = tf.reshape(action_vec, [-1, 14])
 
-        together = tf.concat(1, [fc, action_vec])
+        together = tf.concat(axis=1, values=[fc, action_vec])
         connect_fc = tf.contrib.layers.fully_connected(together, 7, biases_initializer=tf.random_normal_initializer(),
                                                        scope='fc6', weights_initializer=tf.random_normal_initializer(),
                                                        activation_fn=tf.nn.tanh)
@@ -404,19 +409,21 @@ class Policy200039626(Policy):
         self.next_decay = self.epsilon_decay_round
 
         # load model
+        load_path = ''
         if self.load_from:
             load_path = self.load_from
-        else:
+        elif self.save_to:
             load_path = 'models/' + self.save_to
-        try:
-            with open(load_path, 'rb') as f:
-                weights = pickle.load(f)
-                for v, w in zip(tf.trainable_variables(), weights):
-                    self.session.run(v.assign(w))
-            print("Model loaded from %s" % self.load_from)
-        except FileNotFoundError:
-            # first run, no model to load
-            pass
+        if load_path:
+            try:
+                with open(load_path, 'rb') as f:
+                    weights = pickle.load(f)
+                    for v, w in zip(tf.trainable_variables(), weights):
+                        self.session.run(v.assign(w))
+                print("Model loaded from %s" % self.load_from)
+            except FileNotFoundError:
+                # first run, no model to load
+                pass
 
         # set enemy id
         if self.id == 1:
