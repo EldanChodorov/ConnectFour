@@ -21,13 +21,12 @@ class PolicyNetwork:
         self.winning_vec = tf.placeholder(tf.float32, shape=[None, 7, 2], name="actions_vector")
         self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
 
-        self.q_vals = self.network_run(self.boards, self.winning_vec)
         # self.c_vals = self.C_network_run(self.boards)
 
+        self.q_vals = self.network_run(self.boards, self.winning_vec)
         self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2))
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
-        # self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session()
