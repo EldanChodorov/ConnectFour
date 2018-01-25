@@ -48,16 +48,17 @@ NUM_ACTION = 7
 class SmartPolicy(Policy):
 
     def cast_string_args(self, policy_args):
-        policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 150
+        policy_args['batch_size'] = int(policy_args['batch_size']) if 'batch_size' in policy_args else 40
         policy_args['epsilon'] = float(policy_args['epsilon']) if 'epsilon' in policy_args else 0.95
         policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.99
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.0001
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0
         policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in policy_args else 0.1
-        policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 50000
+        policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 30000
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
         policy_args['c_iters'] = policy_args['c_iters'] if 'c_iters' in policy_args else 100
+        policy_args['policy_learn_time'] = policy_args['policy_learn_time'] if 'policy_learn_time' in policy_args else 0.1
         self.log(policy_args)
         return policy_args
 
@@ -87,9 +88,6 @@ class SmartPolicy(Policy):
         action_table = np.fliplr(np.argsort(np.squeeze(q_values, axis=-1), axis=1))
         best_q = np.zeros(batch_size)
 
-        # invalid: per batch, one hot vector for column of invalid move attempted by network
-        invalid = np.zeros((batch_size,))
-
         # replace invalid moves
         for single_batch in np.arange(batch_size):
             single_example = action_table[single_batch]
@@ -97,63 +95,78 @@ class SmartPolicy(Policy):
                 if states[single_batch, 0, action, 0] == 0 and states[single_batch, 0, action, 1] == 0:
                     best_q[single_batch] = q_values[single_batch, action, 0]
                     break
-                else:
-                    invalid[single_batch] = 1
-        return best_q, invalid
+        return best_q
 
     def learn(self, round, prev_state, prev_action, reward, new_state, too_slow):
+
         try:
+            if self.mode == 'train' and self.next_decay == round:
+                if self.epsilon > 0.05:
+                    self.epsilon  = self.epsilon* (0.8)
+                    self.next_decay += 2 * self.epsilon_decay_round
+                if np.abs(self.game_duration/2 - self.next_decay) < 5:
+                    self.epsilon = 0.05
+                    self.next_decay = 0
 
-            if reward != 0:
-                if DEBUG:
-                    if not self._round_started and round % 500 == 0:
-                        self._round_started = True
+            if too_slow:
+                if self.batch_size > 30:
+                    self.batch_size -= 5
+            totel_time_past = 0
 
-                    if self._round_started and round % 500 != 0:
-                        self._round_started = False
+            while totel_time_past + self.norm_learn_time < self.policy_learn_time:
+                if len(self.round_time_list) >= 1000:
+                    self.round_time_list.popleft()
+                start_time = time.time()
+                if reward != 0:
+                    if DEBUG:
+                        if not self._round_started and round % 500 == 0:
+                            self._round_started = True
 
-                if len(self.transitions_memory) >= self.memory_limit:
-                    self.transitions_memory.popleft()
+                        if self._round_started and round % 500 != 0:
+                            self._round_started = False
 
-                # normalize board
-                encapsulated_new_state = self.hot_boards(new_state)
-                new_winning_vec = self.get_winning_vector_with_enemies(new_state, self.id, self.enemy_id)
-                # new_winning_vec = self.get_winning_vector_helper(new_state, self.id)
-                #
-                if prev_action is not None and prev_state is not None:
-                    encapsulated_prev_state = self.hot_boards(prev_state)
+                    if len(self.transitions_memory) >= self.memory_limit:
+                        self.transitions_memory.popleft()
 
-                    # store parameters in memory
-                    prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
-                    # prev_winning_vec = self.get_winning_vector_helper(prev_state, self.id)
-                    self.transitions_memory.append(TransitionBatch(encapsulated_prev_state, prev_action, reward,
-                                                                   encapsulated_new_state, prev_winning_vec, new_winning_vec))
+                    # normalize board
+                    encapsulated_new_state = self.hot_boards(new_state)
+                    new_winning_vec = self.get_winning_vector_with_enemies(new_state, self.id, self.enemy_id)
 
-            # set batch size
-            if self.batch_size < len(self.transitions_memory):
-                batch_size = self.batch_size
-            else:
-                batch_size = len(self.transitions_memory)
+                    if prev_action is not None and prev_state is not None:
+                        encapsulated_prev_state = self.hot_boards(prev_state)
 
-            # select random batches from memory
-            rewards, states, next_states, vector_actions, prev_winning_vec, new_winning_vec = self.get_random_batches(batch_size)
+                        # store parameters in memory
+                        prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
+                        self.transitions_memory.append(TransitionBatch(encapsulated_prev_state, prev_action, reward,
+                                                                       encapsulated_new_state, prev_winning_vec, new_winning_vec))
 
-            # get next action from network and filter valid moves
-            new_q = self.get_next_Q(next_states, new_winning_vec)
-            best_q, invalid = self.get_valid_Qvals(next_states, new_q, batch_size)
+                # set batch size
+                if self.batch_size < len(self.transitions_memory):
+                    batch_size = self.batch_size
+                else:
+                    batch_size = len(self.transitions_memory)
 
-            fixed_rewards = np.clip(rewards + (self.gamma * best_q) * (1 - np.square(rewards)), -1, 1)
+                # select random batches from memory
+                rewards, states, next_states, vector_actions, prev_winning_vec, new_winning_vec = self.get_random_batches(batch_size)
 
-            # illegal moves
-            invalid = 0.3 * invalid + 1.0
+                # get next action from network and filter valid moves
+                new_q = self.get_next_Q(next_states, new_winning_vec)
+                best_q = self.get_valid_Qvals(next_states, new_q, batch_size)
 
-            # train
-            feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
-                         self.q_network.boards: states, self.q_network.punishment: invalid, self.q_network.winning_vec:
-                             prev_winning_vec}
-            _, loss, net = self.q_network.session.run([self.q_network.optimizer, self.q_network.loss,
-                                                       self.q_network.q_vals], feed_dict=feed_dict)
+                fixed_rewards = np.clip(rewards + (self.gamma * best_q) * (1 - np.square(rewards)), -1, 1)
 
+
+                # train
+                feed_dict = {self.q_network.rewards: fixed_rewards, self.q_network.actions_holder: vector_actions,
+                             self.q_network.boards: states ,self.q_network.winning_vec: prev_winning_vec}
+                _, loss, net = self.q_network.session.run([self.q_network.optimizer, self.q_network.loss,
+                                                           self.q_network.q_vals], feed_dict=feed_dict)
+                round_tim = time.time() - start_time
+                totel_time_past += round_tim
+                self.round_time_list.append(round_tim)
+            #updaet mean_learn time
+            self.norm_learn_time = np.mean(np.array(self.round_time_list)) + np.std(np.array(self.round_time_list))/4
+            print(self.norm_learn_time)
             if DEBUG and round % 100 == 0:
                 self.log("ROUND {} loss {}".format(round, loss))
 
@@ -316,7 +329,6 @@ class SmartPolicy(Policy):
 
             encapsulated_boards = self.hot_boards(new_state)
             winning_vec = self.get_winning_vector_with_enemies(new_state, self.id, self.enemy_id)
-            # winning_vec = self.get_winning_vector_helper(new_state, self.id)
 
             # use epsilon greedy
             if np.random.rand() < self.epsilon:
@@ -337,7 +349,9 @@ class SmartPolicy(Policy):
                     prev_encapsulated_boards = self.hot_boards(prev_state)
                     prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
                     # prev_winning_vec = self.get_winning_vector_helper(prev_state, self.id)
-
+                    # print(prev_encapsulated_boards,'\n')
+                    # print(prev_winning_vec,'\n')
+                    # print(prev_action, '\n')
                     # store parameters in memory
                     self.transitions_memory.append(TransitionBatch(prev_encapsulated_boards, prev_action, reward,
                                                                    encapsulated_boards, prev_winning_vec, winning_vec))
@@ -401,11 +415,14 @@ class SmartPolicy(Policy):
     def init_run(self):
         # store all transition batches seen during game {round_num: transition_batch}
         self.transitions_memory = deque()
-
+        self.norm_learn_time = 0.01
+        self.round_time_list = deque()
         print('MODE: %s' % self.mode)
 
         if self.mode == 'test':
             self.epsilon = 0
+
+
 
         self.q_network = PolicyNetwork(self.learning_rate, epochs=5, batches_per_epoch=self.batch_size)
 
@@ -418,7 +435,8 @@ class SmartPolicy(Policy):
         self.WIN_MASK = np.ones(3)[..., None]
         self.ROWS = 6
         self.COLS = 7
-
+        self.epsilon_decay_round = int(self.game_duration / 100)
+        self.next_decay = self.epsilon_decay_round
         if self.load_from:
             load_path = self.load_from
         else:

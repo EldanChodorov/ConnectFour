@@ -25,10 +25,9 @@ class PolicyNetwork:
         # self.c_vals = self.C_network_run(self.boards)
 
         self.action = tf.reduce_max(self.q_vals * self.actions_holder, reduction_indices=1)
-        self.punishment = tf.placeholder(tf.float32, shape=[None], name="punishment")
         self.loss = tf.reduce_mean(tf.pow(self.rewards - self.action, 2))
         self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
-        self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
+        # self.probabilities = tf.nn.softmax(tf.squeeze(self.q_vals, [-1]))
 
         self.init = tf.initialize_all_variables()
         self.session = tf.Session()
@@ -79,7 +78,7 @@ class PolicyNetwork:
         :param action_vec: (?, 7)
         :return:
         '''
-        return self.net_try16(boards, action_vec)
+        return self.net_try17(boards, action_vec)
 
     def network_run2(self, feed_inputs):
         '''
@@ -442,5 +441,29 @@ class PolicyNetwork:
         return final
 
 
+    def net_try17(self, board, action_vec):
+        print("NETWORK 17")
+        conv_layer1 = tf.contrib.layers.conv2d(board, 32, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
+        conv_layer2 = tf.contrib.layers.conv2d(conv_layer1, 16, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
+        conv_layer3 = tf.contrib.layers.conv2d(conv_layer2, 16, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
+        conv_layer4 = tf.contrib.layers.conv2d(conv_layer3, 1, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
+
+        out_shape = conv_layer4.get_shape().as_list()
+        flat_out = tf.reshape(conv_layer4, [-1, out_shape[1] * out_shape[2]])
+        fc = tf.contrib.layers.fully_connected(flat_out, 14, tf.nn.tanh, weights_initializer=tf.random_normal_initializer(),
+                                               biases_initializer=tf.random_normal_initializer())
+        fc = tf.reshape(fc, [-1, 14])
+        action_vec = tf.reshape(action_vec, [-1, 14])
+
+        together = tf.concat(1, [fc, action_vec])
+        connect_fc = tf.contrib.layers.fully_connected(together, 7, biases_initializer=tf.random_normal_initializer(),
+                                                       scope='fc6', weights_initializer=tf.random_normal_initializer(),
+                                                       activation_fn=tf.nn.tanh)
+        final = tf.reshape(connect_fc, [-1, 7, 1])
+        return final
+
+
 def printShape(tensor):
     print(tensor.get_shape().as_list())
+
+
