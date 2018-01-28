@@ -19,6 +19,8 @@ COLS = 7
 WIN_MASK = np.ones(4)
 ACTIONS = [0, 1, 2, 3, 4, 5, 6]
 NUM_ACTION = 7
+WIN_VEC = 1
+ENCAPS_STATE = 0
 
 
 class TransitionBatch:
@@ -40,7 +42,6 @@ class Policy200039626(Policy):
         policy_args['gamma'] = float(policy_args['gamma']) if 'gamma' in policy_args else 0.99
         policy_args['learning_rate'] = float(policy_args['learning_rate']) if 'learning_rate' in policy_args else 0.0001
         policy_args['learning_decay'] = float(policy_args['learning_decay']) if 'learning_decay' in policy_args else 0
-        policy_args['epsilon_decay'] = float(policy_args['epsilon_decay']) if 'epsilon_decay' in policy_args else 0.1
         policy_args['memory_limit'] = int(policy_args['memory_limit']) if 'memory_limit' in policy_args else 30000
         policy_args['save_to'] = policy_args['save_to'] if 'save_to' in policy_args else None
         policy_args['load_from'] = policy_args['load_from'] if 'load_from' in policy_args else None
@@ -89,20 +90,16 @@ class Policy200039626(Policy):
         '''Perform learning process of the policy.'''
         try:
             # update values of epsilon for exploration-exploitation tradeoff
-            if self.mode == 'train' and self.next_decay == round:
-                if self.epsilon > 0.05:
-                    self.epsilon = self.epsilon* (0.8)
-                    self.next_decay += 2 * self.epsilon_decay_round
-                if np.abs(self.game_duration/2 - self.next_decay) < 5:
-                    self.epsilon = 0.05
-                    self.next_decay = 0
+            if self.curr_epsilon > 0.05:
+                self.curr_epsilon = self.epsilon * (1 - 3 * (round / self.game_duration))
+            else:
+                self.curr_epsilon = 0.05
 
-            # if lean is taking too long, learn less batches each time
+            # if learn is taking too long, learn less batches each time
             if too_slow:
                 if self.batch_size > 30:
                     self.batch_size -= 5
             total_time_past = 0
-
             while total_time_past + self.norm_learn_time < self.policy_learn_time:
 
                 if len(self.round_time_list) >= 1000:
@@ -117,18 +114,26 @@ class Policy200039626(Policy):
 
                     # normalize board
                     encapsulated_new_state = self.hot_boards(new_state)
-                    new_winning_vec = self.get_winning_vector_with_enemies(new_state, self.id, self.enemy_id)
+                    new_winning_vec = self.get_winning_vector_with_enemies(new_state)
 
                     # not the first turn
                     if prev_action is not None and prev_state is not None:
-                        encapsulated_prev_state = self.hot_boards(prev_state)
+                        if self.next_prev_state_vec is None:
+                            encapsulated_prev_state = self.hot_boards(prev_state)
 
-                        # store parameters in memory
-                        prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
+                            # store parameters in memory
+                            prev_winning_vec = self.get_winning_vector_with_enemies(prev_state)
+
+                        else:
+                            encapsulated_prev_state = self.next_prev_state_vec[ENCAPS_STATE]
+                            prev_winning_vec = self.next_prev_state_vec[WIN_VEC]
+
                         self.transitions_memory.append(TransitionBatch(encapsulated_prev_state, prev_action, reward,
                                                                        encapsulated_new_state, prev_winning_vec, new_winning_vec))
 
-                # set batch size
+                        self.next_prev_state_vec = None
+
+                    # set batch size
                 if self.batch_size < len(self.transitions_memory):
                     batch_size = self.batch_size
                 else:
@@ -153,7 +158,7 @@ class Policy200039626(Policy):
                 self.round_time_list.append(round_tim)
 
             #update mean_learn time
-            self.norm_learn_time = np.mean(np.array(self.round_time_list)) + np.std(np.array(self.round_time_list))/4
+            self.norm_learn_time = np.mean(np.array(self.round_time_list)) + np.std(np.array(self.round_time_list))/2
 
         except Exception as ex:
             print("Exception in learn: %s %s" % (type(ex), ex))
@@ -163,13 +168,15 @@ class Policy200039626(Policy):
                                 session=self.session)
 
     def build_next_state(self, state, action, player_id):
-        '''Construct matrix representing the next state after the given state and action.'''
+        '''
+        Construct matrix representing the next state after the given state and action.
+        :return (state, row, if_changed)
+        '''
         if state[0, action] != 0:
-            return state
-        state = np.copy(state)
+            return state, 0, False
         row = np.max(np.where(state[:, action] == 0))
         state[row, action] = player_id
-        return state
+        return state, row, True
 
     def generate_sample_final_board(self, state, action):
         # generate best next action state, in order to feed next state into network
@@ -228,25 +235,39 @@ class Policy200039626(Policy):
             board[np.where(board == 2)] = 1
         return board
 
-    def get_winning_vector_helper(self, state, player_id):
-        '''Produce one hot vector with 1 for an action which will give a winning move.'''
-        vec = np.zeros((1, NUM_ACTION, 1))
-        valid_columns = np.where(state[0, :] == 0)[0]
-        for i in valid_columns:
-            simulated_state = self.build_next_state(state, i, player_id)
-            if self.check_for_win(simulated_state, player_id, i):
-                vec[0, i, 0] = 1
-                break
-        return vec
+    def simulate_check_win(self, column, curr_winning_vector, curr_state):
+        simulated_state, placed_row, changed = self.build_next_state(curr_state, column, self.id)
+        if changed and self.check_for_win(simulated_state, self.id, column):
+            curr_winning_vector[0, column, 0] = 1
+            return True, curr_winning_vector, curr_state
 
-    def get_winning_vector_with_enemies(self, state, player1_id, player2_id):
+        # remove placed action
+        curr_state[placed_row, column] = 0
+        return False, curr_winning_vector, curr_state
+
+    def get_winning_vector_with_enemies(self, state):
         '''
         Create winning vectors one-hot vectors.
         :return: concatenation of 2 winning vectors, one for self and one for enemy
         '''
-        my_winning = self.get_winning_vector_helper(state, player1_id)
-        enemy_winning = self.get_winning_vector_helper(state, player2_id)
-        together = np.concatenate((my_winning, enemy_winning))
+        state = np.copy(state)
+        vec1 = np.zeros((1, NUM_ACTION, 1))
+        vec2 = np.zeros((1, NUM_ACTION, 1))
+        valid_columns = np.where(state[0, :] == 0)[0]
+
+        # check for self
+        for i in valid_columns:
+            win, vec1, state = self.simulate_check_win(i, vec1, state)
+            if win:
+                break
+
+        # check for enemy
+        for j in valid_columns:
+            win, vec2, state = self.simulate_check_win(j, vec2, state)
+            if win:
+                break
+
+        together = np.concatenate((vec1, vec2))
         return together.reshape((1, 7, 2))
 
     def single_hot_board(self, board, player_id):
@@ -260,10 +281,10 @@ class Policy200039626(Policy):
 
         try:
             encapsulated_boards = self.hot_boards(new_state)
-            winning_vec = self.get_winning_vector_with_enemies(new_state, self.id, self.enemy_id)
+            winning_vec = self.get_winning_vector_with_enemies(new_state)
 
             # use epsilon greedy
-            if np.random.rand() < self.epsilon:
+            if np.random.rand() < self.curr_epsilon:
 
                 # choose random action
                 action = self.get_random_action(new_state)
@@ -275,11 +296,21 @@ class Policy200039626(Policy):
             # store parameters in memory
             if self.mode == 'train':
                 if prev_action is not None and prev_state is not None:
-                    prev_encapsulated_boards = self.hot_boards(prev_state)
-                    prev_winning_vec = self.get_winning_vector_with_enemies(prev_state, self.id, self.enemy_id)
+
+                    if self.next_prev_state_vec is None:
+                        prev_encapsulated_boards = self.hot_boards(prev_state)
+
+                        # store parameters in memory
+                        prev_winning_vec = self.get_winning_vector_with_enemies(prev_state)
+
+                    else:
+                        prev_encapsulated_boards = self.next_prev_state_vec[ENCAPS_STATE]
+                        prev_winning_vec = self.next_prev_state_vec[WIN_VEC]
 
                     self.transitions_memory.append(TransitionBatch(prev_encapsulated_boards, prev_action, reward,
                                                                    encapsulated_boards, prev_winning_vec, winning_vec))
+
+                    self.next_prev_state_vec = (encapsulated_boards, winning_vec)
 
                     # clear memory if full
                     if len(self.transitions_memory) >= self.memory_limit:
@@ -312,6 +343,7 @@ class Policy200039626(Policy):
         ''':return action chosen by policy'''
         new_state = new_state.reshape((1, 6, 7, 2))
         q_values = self.get_next_Q(new_state, winning_vec)
+
         action_table = np.fliplr(np.argsort(q_values, axis=1))
 
         # choose first valid action
@@ -357,8 +389,7 @@ class Policy200039626(Policy):
         '''
         conv_layer1 = tf.contrib.layers.conv2d(board, 32, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
         conv_layer2 = tf.contrib.layers.conv2d(conv_layer1, 16, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
-        conv_layer3 = tf.contrib.layers.conv2d(conv_layer2, 16, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
-        conv_layer4 = tf.contrib.layers.conv2d(conv_layer3, 1, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
+        conv_layer4 = tf.contrib.layers.conv2d(conv_layer2, 1, [5, 5], padding='SAME', activation_fn=tf.nn.sigmoid)
 
         out_shape = conv_layer4.get_shape().as_list()
         flat_out = tf.reshape(conv_layer4, [-1, out_shape[1] * out_shape[2]])
@@ -368,7 +399,7 @@ class Policy200039626(Policy):
         fc = tf.reshape(fc, [-1, 14])
         action_vec = tf.reshape(action_vec, [-1, 14])
 
-        together = tf.concat(axis=1, values=[fc, action_vec])
+        together = tf.concat(1, values=[fc, action_vec])
         connect_fc = tf.contrib.layers.fully_connected(together, 7, biases_initializer=tf.random_normal_initializer(),
                                                        scope='fc6', weights_initializer=tf.random_normal_initializer(),
                                                        activation_fn=tf.nn.tanh)
@@ -399,16 +430,18 @@ class Policy200039626(Policy):
         self.norm_learn_time = 0.01
         self.round_time_list = deque()
 
+        # strore calculated state and winning vector in each round, to be reused next time
+        self.next_prev_state_vec = None
+
         # do not explore during test time
         if self.mode == 'test':
             self.epsilon = 0
+            self.curr_epsilon = self.epsilon
+        else:
+            self.curr_epsilon = self.epsilon
 
         # initialize neural network
         self.init_network()
-
-        # load stored model
-        self.epsilon_decay_round = int(self.game_duration / 100)
-        self.next_decay = self.epsilon_decay_round
 
         # load model
         load_path = ''
