@@ -161,6 +161,7 @@ class Policy200039626(Policy):
             self.norm_learn_time = np.mean(np.array(self.round_time_list)) + np.std(np.array(self.round_time_list))/2
 
         except Exception as ex:
+            print(round, prev_state, prev_action, reward, new_state)
             print("Exception in learn: %s %s" % (type(ex), ex))
 
     def get_next_Q(self, curr_state, winning_vec):
@@ -399,7 +400,7 @@ class Policy200039626(Policy):
         fc = tf.reshape(fc, [-1, 14])
         action_vec = tf.reshape(action_vec, [-1, 14])
 
-        together = tf.concat(1, values=[fc, action_vec])
+        together = tf.concat(axis=1,values=[fc, action_vec])
         connect_fc = tf.contrib.layers.fully_connected(together, 7, biases_initializer=tf.random_normal_initializer(),
                                                        scope='fc6', weights_initializer=tf.random_normal_initializer(),
                                                        activation_fn=tf.nn.tanh)
